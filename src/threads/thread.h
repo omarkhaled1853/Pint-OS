@@ -24,6 +24,9 @@ typedef int tid_t;
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
 
+// min global ticks ()
+int64_t min_global_ticks;
+
 /* A kernel thread or user process.
 
    Each thread structure is stored in its own 4 kB page.  The
@@ -92,6 +95,7 @@ struct thread
    
    // local ticks
     int64_t time_to_wake_up; 
+   //  struct list_elem sleep_elem;   
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
@@ -110,8 +114,6 @@ struct thread
    Controlled by kernel command-line option "-o mlfqs". */
 extern bool thread_mlfqs;
 
-// min global ticks
-// extern int64_t min_global_ticks;
 
 void thread_init (void);
 void thread_start (void);
@@ -125,11 +127,13 @@ tid_t thread_create (const char *name, int priority, thread_func *, void *);
 void thread_block (void);
 void thread_unblock (struct thread *);
 
-// thread sleep
+/* ==================================== Added =================================== */
+// Thread sleep
 void thread_sleep (int64_t time_to_wake_up);
 
-// thread wake up
-void thread_wake_up ();
+/* ==================================== Added =================================== */
+// Thread wake up
+void thread_wake_up (void);
 
 struct thread *thread_current (void);
 tid_t thread_tid (void);
