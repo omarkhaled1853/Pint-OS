@@ -24,7 +24,9 @@ typedef int tid_t;
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
 
-// min global ticks ()
+/* ====================================== ADDED ====================================== */
+/* Min global ticks updated for the first min time_to_wake_up ticks 
+   for each thread in sleep_list */
 int64_t min_global_ticks;
 
 /* A kernel thread or user process.
@@ -93,9 +95,9 @@ struct thread
     int priority;                       /* Priority. */
     struct list_elem allelem;           /* List element for all threads list. */
    
-   // local ticks
+   /* ==================================== Added =================================== */
+   // local ticks time_to_wake_up for thread 
     int64_t time_to_wake_up; 
-   //  struct list_elem sleep_elem;   
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */

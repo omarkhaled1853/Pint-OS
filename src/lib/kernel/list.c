@@ -399,7 +399,8 @@ inplace_merge (struct list_elem *a0, struct list_elem *a1b0,
       }
 }
 
-/* (Added) Compares the value of two list elements A and B, given
+/* ====================================== ADDED ====================================== */
+/* Compares the value of two list elements A and B, given
    auxiliary data AUX (UNUSED).  Returns true if A is less than B, or
    false if A is greater than or equal to B respect to  time_to_wake_up (asccending)*/
 bool

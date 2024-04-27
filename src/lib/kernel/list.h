@@ -165,7 +165,10 @@ void list_reverse (struct list *);
 typedef bool list_less_func (const struct list_elem *a,
                              const struct list_elem *b,
                              void *aux);
-// (Added)
+/* ====================================== ADDED ====================================== */
+/* Compares the value of two list elements A and B, given
+   auxiliary data AUX.  Returns true if A is less than B, or
+   false if A is greater than or equal to B with respect to thread value of time_to_wake_up. */
 bool list_less_time_to_wake_up(const struct list_elem *a,
                                const struct list_elem *b,
                                void *aux) ;

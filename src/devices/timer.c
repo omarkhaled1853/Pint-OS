@@ -93,7 +93,7 @@ timer_sleep (int64_t ticks)
   int64_t start = timer_ticks ();
   ASSERT (intr_get_level () == INTR_ON);
 /* ==================================== Added =================================== */
-  // check if time of sleeping thread with number of ticks that thread will sleep
+  // Check if time of sleeping thread with number of ticks that thread will sleep
   if(timer_elapsed(start) < ticks)
       thread_sleep(start + ticks);
 }
@@ -175,7 +175,7 @@ timer_interrupt (struct intr_frame *args UNUSED)
   ticks++;
   thread_tick ();
 /* ==================================== Added =================================== */
-  /* wake up threads until there isn't threads to wake up */
+  /* Wake up threads until there isn't threads to wake up */
   while (timer_ticks() >= min_global_ticks)
     thread_wake_up();
 }
