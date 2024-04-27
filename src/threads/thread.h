@@ -89,6 +89,9 @@ struct thread
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
     struct list_elem allelem;           /* List element for all threads list. */
+   
+   // local ticks
+    int64_t time_to_wake_up; 
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
@@ -107,6 +110,9 @@ struct thread
    Controlled by kernel command-line option "-o mlfqs". */
 extern bool thread_mlfqs;
 
+// min global ticks
+// extern int64_t min_global_ticks;
+
 void thread_init (void);
 void thread_start (void);
 
@@ -118,6 +124,12 @@ tid_t thread_create (const char *name, int priority, thread_func *, void *);
 
 void thread_block (void);
 void thread_unblock (struct thread *);
+
+// thread sleep
+void thread_sleep (int64_t time_to_wake_up);
+
+// thread wake up
+void thread_wake_up ();
 
 struct thread *thread_current (void);
 tid_t thread_tid (void);

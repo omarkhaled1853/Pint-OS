@@ -1,4 +1,5 @@
 #include "list.h"
+#include "threads/thread.h" 
 #include "../debug.h"
 
 /* Our doubly linked lists have two header elements: the "head"
@@ -274,6 +275,25 @@ list_pop_back (struct list *list)
   return back;
 }
 
+// bool list_delete(struct list *list, struct list_elem *elem) {
+//     // Check if the list and element are valid
+//     assert(list != NULL);
+//     assert(elem != NULL);
+
+//     // Find the element in the list
+//     struct list_elem *current = list->head.next;
+//     while (current != &list->tail) {
+//         if (current == elem) {  // Element found
+//             list_remove(current);  // Remove it using list_remove()
+//             return true;  // Return true indicating success
+//         }
+//         current = current->next;  // Move to the next element
+//     }
+
+//     // Element not found in the list
+//     return false;
+// }
+
 /* Returns the front element in LIST.
    Undefined behavior if LIST is empty. */
 struct list_elem *
@@ -396,6 +416,16 @@ inplace_merge (struct list_elem *a0, struct list_elem *a1b0,
         a1b0 = list_next (a1b0);
         list_splice (a0, list_prev (a1b0), a1b0);
       }
+}
+
+/* Compares the value of two list elements A and B, given
+   auxiliary data AUX (UNUSED).  Returns true if A is less than B, or
+   false if A is greater than or equal to B respect to  time_to_wake_up (asccending)*/
+bool
+list_less_time_to_wake_up(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED) {
+    const struct thread *ta = list_entry(a, struct thread, elem);
+    const struct thread *tb = list_entry(b, struct thread, elem);
+    return ta->time_to_wake_up < tb->time_to_wake_up;
 }
 
 /* Sorts LIST according to LESS given auxiliary data AUX, using a

@@ -148,6 +148,8 @@ struct list_elem *list_remove (struct list_elem *);
 struct list_elem *list_pop_front (struct list *);
 struct list_elem *list_pop_back (struct list *);
 
+// bool list_delete(struct list *list, struct list_elem *elem);
+
 /* List elements. */
 struct list_elem *list_front (struct list *);
 struct list_elem *list_back (struct list *);
@@ -165,6 +167,8 @@ void list_reverse (struct list *);
 typedef bool list_less_func (const struct list_elem *a,
                              const struct list_elem *b,
                              void *aux);
+
+bool list_less_time_to_wake_up(const struct list_elem *a, const struct list_elem *b, void *aux) ;
 
 /* Operations on lists with ordered elements. */
 void list_sort (struct list *,

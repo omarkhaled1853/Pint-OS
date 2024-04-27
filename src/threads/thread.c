@@ -24,6 +24,11 @@
    that are ready to run but not actually running. */
 static struct list ready_list;
 
+
+/* List of processes in THREAD_BLOCKED state, that is, processes
+   that are blocked */
+static struct list sleep_list;
+
 /* List of all processes.  Processes are added to this list
    when they are first scheduled and removed when they exit. */
 static struct list all_list;
@@ -92,6 +97,11 @@ thread_init (void)
   lock_init (&tid_lock);
   list_init (&ready_list);
   list_init (&all_list);
+  // initialize sleep_list
+  list_init(&sleep_list);
+
+  // // initialize min_global_ticks
+  // min_global_ticks = INT64_MAX;
 
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
@@ -239,6 +249,114 @@ thread_unblock (struct thread *t)
   ASSERT (t->status == THREAD_BLOCKED);
   list_push_back (&ready_list, &t->elem);
   t->status = THREAD_READY;
+  intr_set_level (old_level);
+}
+
+
+/* thread sleep implementation for sleep thread until 
+  time_to_wake_up = (starting time of sleep thread + number of ticks that will sleep)*/
+void 
+thread_sleep(int64_t time_to_wake_up){
+  
+  struct thread *cur = thread_current ();
+
+  enum intr_level old_level;
+
+  ASSERT (!intr_context ());
+
+  old_level = intr_disable ();
+  // if (cur != idle_thread){
+    // change status
+    // cur->status = THREAD_BLOCKED;
+    
+    // store local ticks to time to wake up
+    cur->time_to_wake_up = time_to_wake_up;
+
+    // update global ticks
+    // if (min_global_ticks > time_to_wake_up)
+    //   min_global_ticks = time_to_wake_up;
+    
+    // delete from ready_list
+    // list_delete(&ready_list, &cur->elem);
+
+    // insert ordered in sleep_list (asccending from lesset thread time_to_wake_up)
+    list_insert_ordered (&sleep_list, &cur->elem, list_less_time_to_wake_up, NULL);
+
+    // block thread and change status from any status to blocked
+    thread_block();
+  // }  
+  // schedule ();
+  intr_set_level (old_level);
+}
+
+/* thread wack up implementation*/
+void thread_wake_up () {
+  
+  // enum intr_level old_level;
+
+  // ASSERT (!intr_context ());
+
+  // intr_disable ();
+
+  // if(!list_empty(&sleep_list)){
+  //   // wakking thread from sleep_list
+  //   struct thread *waked_thread =  list_entry(list_pop_front(&sleep_list), struct thread, elem);
+    
+  //   waked_thread->time_to_wake_up = 0;
+    
+  //   // update status
+  //   waked_thread->status = THREAD_READY;
+    
+  //   // push thread to ready_list
+  //   list_push_back(&ready_list, &waked_thread->elem);
+
+  //   if(!list_empty(&sleep_list)) {
+  //     struct thread *front_thread =  list_entry(list_front(&sleep_list), struct thread, elem);
+  //     min_global_ticks = front_thread->time_to_wake_up;
+  //   }
+  //   else {
+  //     min_global_ticks = INT64_MAX;
+  //   }
+  //   schedule();
+  // }
+  // else
+  //   min_global_ticks = INT64_MAX;
+  // intr_set_level (old_level);
+
+  enum intr_level old_level;
+
+  ASSERT (!intr_context ());
+
+
+  old_level = intr_disable();
+  
+  // pointer to first thread in sleep_list
+  struct list_elem *ptr_front = list_begin(&sleep_list);
+  // temporary pointer to the thread that should wake up
+  struct list_elem *ptr_wake_up;
+  // current time
+  int64_t current_ticks = timer_ticks();
+  
+  /* loop on sleep_list and wake up all threads that should wake up
+   until thread tate should still sleep */
+  while (ptr_front != list_end(&sleep_list)){
+    // front thread in sleep_list
+    struct thread *thread = list_entry(ptr_front, struct thread, elem);
+    // point to the thread that may wake up
+    ptr_wake_up = ptr_front;
+    // point to next thread in sleep_list
+    ptr_front = list_next(ptr_front);
+
+    if(thread->time_to_wake_up > current_ticks)
+      break;
+    // pop thread from sleep_list
+    list_pop_front(&sleep_list);
+    
+    // unblock thread and change status from block to ready
+    thread_unblock(&ptr_wake_up);
+    
+  }
+
   intr_set_level (old_level);
 }
 
