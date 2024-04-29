@@ -94,7 +94,7 @@ timer_sleep (int64_t ticks)
   ASSERT (intr_get_level () == INTR_ON);
 /* ==================================== Added =================================== */
   // Check if time of sleeping thread with number of ticks that thread will sleep
-  if(timer_elapsed(start) < ticks)
+  if(ticks>0&&timer_elapsed(start) < ticks)
       thread_sleep(start + ticks);
 }
 
