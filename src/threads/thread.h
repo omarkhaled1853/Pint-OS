@@ -3,9 +3,8 @@
 
 #include <debug.h>
 #include <list.h>
-#include <stdint.h>
 /* ==================================== Added =================================== */
-#include "threads/floating-point.h"
+#include "floating-point.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -130,6 +129,7 @@ void thread_start (void);
 
 void thread_tick (void);
 void thread_print_stats (void);
+void reschedule_threads (void);
 
 typedef void thread_func (void *aux);
 tid_t thread_create (const char *name, int priority, thread_func *, void *);
@@ -177,5 +177,6 @@ void thread_update_priorty_mlfqs(struct thread *t);
 void all_threads_update_priorty_mlfqs(void);
 // Update load_avg
 void update_load_avg(void);
+
 
 #endif /* threads/thread.h */

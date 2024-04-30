@@ -187,8 +187,7 @@ timer_interrupt (struct intr_frame *args UNUSED)
   {
   struct thread *cur = thread_current();
   // Increment recent_cpu by one each tick
-    inc_recent_cpu(cur);
-    // Update all threads priorty mlfqs every 4 ticks
+    inc_recent_cpu(cur);  
     if (ticks % TIMER_FREQ == 0)
     {
       enum intr_level old_level;
@@ -197,7 +196,6 @@ timer_interrupt (struct intr_frame *args UNUSED)
       all_threads_update_recent_cpu ();
       intr_set_level (old_level);
     }
-    // Update all threads load_avg && recent_cpu every 100 ticks
     else if (ticks % TIME_SLICE == 0)
     {
       all_threads_update_priorty_mlfqs ();

@@ -1,5 +1,4 @@
-#include "threads/floating-point.h"
-#include <stdint.h>
+#include "floating-point.h"
 /*we consider 17.14=p.q representation   q=14*/
 
 const int q=14; 

@@ -1,5 +1,7 @@
-#ifndef FIXED_POINT
-#define FIXED_POINT        
+#ifndef THREADS_FIXED_POINT_H
+#define THREADS_FIXED_POINT_H
+
+#include <stdint.h>       
 
 
 struct real     // It does not need a struct but just to separate concept of Integer away from real

@@ -115,12 +115,14 @@ thread_init (void)
   initial_thread->tid = allocate_tid ();
 
   /* ==================================== Added =================================== */
+  if(thread_mlfqs){
   // Initialize load_avg
   load_avg = convert_int_to_real(0);
   // Initialize nice for current thread
   initial_thread->nice = 0;
   // Initialize recent_cpu for current thread
   initial_thread->recent_cpu = convert_int_to_real(0);
+   }
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -260,7 +262,7 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  list_push_back (&ready_list, &t->elem);
+   list_insert_ordered(&ready_list, &t->elem, list_more_priorty, NULL);
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
@@ -489,12 +491,10 @@ thread_update_recent_cpu(struct thread *t)
 void
 all_threads_update_recent_cpu (void)
 {
-  // enum intr_level old_level;
-  // old_level = intr_disable ();
-  // Update thread recent_cpu foreach
+ 
   thread_foreach(thread_update_recent_cpu, NULL);
 
-  // intr_set_level (old_level);
+ 
 }
 
 /* ==================================== Added =================================== */
@@ -510,7 +510,7 @@ thread_update_priorty_mlfqs(struct thread *t)
   // Check if convertion lead to over flow or not
   if (priority < PRI_MIN)
     priority = PRI_MIN;
-  else if (priority < PRI_MAX)
+  else if (priority > PRI_MAX)
     priority = PRI_MAX;
   
   // Finally => PRI_MAX - (recent_cpu / 4) - (nice * 2)
@@ -561,20 +561,20 @@ reschedule_threads (void)
 {
     enum intr_level old_level;
     old_level = intr_disable ();
+    bool need_to_leave=false;
+    if(!list_empty(&ready_list))
+    {
+       struct thread* top_priority=list_entry(list_front(&ready_list),struct thread,elem);
+       struct thread*current=thread_current();
+       if(top_priority->priority>current->priority)
+       {
+          need_to_leave=true;
+       }
+    }
+     intr_set_level(old_level);
 
-    struct thread *cur = thread_current();
-    struct thread *max_priority_thread = list_entry (list_front(&ready_list), struct thread, elem);
-
-    // Check if current thread priority less than max thread priority in ready_list
-    bool is_smaller = false;
-    if(cur->priority < max_priority_thread->priority)
-      is_smaller = true;
-
-    intr_set_level (old_level);
-
-    // but thread in ready_list if is_smaller
-    if (is_smaller)
-      thread_yield();
+      if (need_to_leave)
+       thread_yield();
 }
 
 /* Sets the current thread's nice value to NICE. */
