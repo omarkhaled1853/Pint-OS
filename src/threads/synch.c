@@ -192,16 +192,9 @@ lock_init (struct lock *lock)
 void
 lock_acquire (struct lock *lock)
 {
-  /* ==================================== Added =================================== */
-  
-
   ASSERT (lock != NULL);
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
-
-  // if (thread_mlfqs)
-  //   return;
-
   sema_down (&lock->semaphore);
   lock->holder = thread_current ();
 }
@@ -233,10 +226,7 @@ lock_try_acquire (struct lock *lock)
    handler. */
 void
 lock_release (struct lock *lock) 
-{
-  /* ==================================== Added =================================== */
-  
-
+{ 
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
    /*we must disable donation*/

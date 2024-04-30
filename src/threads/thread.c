@@ -487,14 +487,18 @@ thread_update_recent_cpu(struct thread *t)
 }
 
 /* ==================================== Added =================================== */
-// Update all thread recent_cpu
+// Update load_avg and  all threads recent_cpu
 void
-all_threads_update_recent_cpu (void)
+all_threads_update_recent_cpu_and_update_load_avg (void)
 {
- 
-  thread_foreach(thread_update_recent_cpu, NULL);
+  enum intr_level old_level;
+  old_level = intr_disable ();
+  // Update load_avg
+  update_load_avg();
 
- 
+  // Update all threads recent_cpu
+  thread_foreach(thread_update_recent_cpu, NULL);
+  intr_set_level (old_level);
 }
 
 /* ==================================== Added =================================== */
@@ -516,13 +520,6 @@ thread_update_priorty_mlfqs(struct thread *t)
   // Finally => PRI_MAX - (recent_cpu / 4) - (nice * 2)
   t->priority = priority;
 }
-/* ==================================== Added =================================== */
-// Update each thread priority
-void
-each_thread_update_priorty_mlfqs (void)
-{
-  thread_update_priorty_mlfqs(thread_current());
-}
 
 /* ==================================== Added =================================== */
 // Update all thread priorty (mlfqs)
@@ -532,7 +529,7 @@ all_threads_update_priorty_mlfqs (void)
   enum intr_level old_level;
   old_level = intr_disable ();
   // Update thread priorty foreach (mlfqs)
-  thread_foreach(each_thread_update_priorty_mlfqs, NULL);
+  thread_foreach(thread_update_priorty_mlfqs, NULL);
   
   // Sort all threads with respect to priorty
   list_sort(&ready_list, list_more_priorty, NULL);

@@ -8,8 +8,6 @@
 #include "threads/synch.h"
 #include "threads/thread.h"
 #include <stdlib.h>
-/* ==================================== Added =================================== */
-#include "threads/floating-point.h"
   
 /* See [8254] for hardware details of the 8254 timer chip. */
 
@@ -187,15 +185,13 @@ timer_interrupt (struct intr_frame *args UNUSED)
   {
   struct thread *cur = thread_current();
   // Increment recent_cpu by one each tick
-    inc_recent_cpu(cur);  
+    inc_recent_cpu(cur);
+    // Update load_avg and all threads recent_cpu every 100 ticks
     if (ticks % TIMER_FREQ == 0)
     {
-      enum intr_level old_level;
-      old_level = intr_disable ();
-      update_load_avg ();
-      all_threads_update_recent_cpu ();
-      intr_set_level (old_level);
+      all_threads_update_recent_cpu_and_update_load_avg ();
     }
+    // Update all threads priority every 4 ticks
     else if (ticks % TIME_SLICE == 0)
     {
       all_threads_update_priorty_mlfqs ();
