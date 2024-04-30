@@ -170,10 +170,10 @@ typedef bool list_less_func(const struct list_elem *a,
                             const struct list_elem *b,
                             void *aux);
 //================================================added=============================
-bool thread_insert_less_head(const struct list_elem *lhs, const struct list_elem *rhs, void *aux);
+bool list_more_effPriorty(const struct list_elem *lhs, const struct list_elem *rhs, void *aux);
 
+/* ====================================== ADDED ====================================== */
 bool lock_insert_highest_priority(const struct list_elem *a, const struct list_elem *b, void *aux);
-
 
 /* ====================================== ADDED ====================================== */
 /* Compares the value of two list elements A and B, given
@@ -182,10 +182,6 @@ bool lock_insert_highest_priority(const struct list_elem *a, const struct list_e
 bool list_less_time_to_wake_up(const struct list_elem *a,
                                const struct list_elem *b,
                                void *aux);
-
-// bool list_more_priorty(const struct list_elem *a,
-//                        const struct list_elem *b,
-//                        void *aux) ;
 
 /* Operations on lists with ordered elements. */
 void list_sort(struct list *,

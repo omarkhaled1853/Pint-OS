@@ -255,7 +255,7 @@ void thread_unblock(struct thread *t)
   ASSERT(is_thread(t));
   old_level = intr_disable();
   ASSERT(t->status == THREAD_BLOCKED);
-  list_insert_ordered(&ready_list, &t->elem, thread_insert_less_head, NULL);
+  list_insert_ordered(&ready_list, &t->elem, list_more_effPriorty, NULL);
   t->status = THREAD_READY;
   intr_set_level(old_level);
 }
@@ -399,7 +399,7 @@ void thread_yield(void)
 
   old_level = intr_disable();
   if (cur != idle_thread)
-    list_insert_ordered(&ready_list, &cur->elem, thread_insert_less_head, NULL);
+    list_insert_ordered(&ready_list, &cur->elem, list_more_effPriorty, NULL);
   cur->status = THREAD_READY;
   schedule();
   intr_set_level(old_level);
@@ -532,7 +532,7 @@ all_threads_update_priorty_mlfqs (void)
   thread_foreach(thread_update_priorty_mlfqs, NULL);
   
   // Sort all threads with respect to priorty
-  list_sort(&ready_list, thread_insert_less_head, NULL);
+  list_sort(&ready_list, list_more_effPriorty, NULL);
   intr_set_level (old_level);
 }
 /* ==================================== Added =================================== */
@@ -715,7 +715,7 @@ init_thread(struct thread *t, const char *name, int priority)
   //===================================added==========================
 
   old_level = intr_disable();
-  list_insert_ordered(&all_list, &t->allelem, thread_insert_less_head, NULL);
+  list_insert_ordered(&all_list, &t->allelem, list_more_effPriorty, NULL);
   intr_set_level(old_level);
 }
 
@@ -867,7 +867,7 @@ void update_ready_list(struct thread *t)
   if (t->status == THREAD_READY)
   {
     list_remove(&t->elem);
-    list_insert_ordered(&ready_list, &t->elem, thread_insert_less_head, NULL);
+    list_insert_ordered(&ready_list, &t->elem, list_more_effPriorty, NULL);
   }
 
   intr_set_level(old_level);

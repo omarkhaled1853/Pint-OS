@@ -402,32 +402,23 @@ bool list_less_time_to_wake_up(const struct list_elem *a, const struct list_elem
   const struct thread *tb = list_entry(b, struct thread, elem);
   return ta->time_to_wake_up < tb->time_to_wake_up;
 }
-//================================added==================================================
-bool thread_insert_less_head(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED)
+/* ====================================== ADDED ====================================== */
+/* Compares the value of two list elements A and B, given
+   auxiliary data AUX (UNUSED).  Returns true if A is less than B, or
+   false if A is greater than or equal to B respect to  effPriorty (descending)*/
+bool list_more_effPriorty(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED)
 {
   const struct thread *ta = list_entry(a, struct thread, elem);
   const struct thread *tb = list_entry(b, struct thread, elem);
   return ta->effPriority > tb->effPriority;
 }
-
+/* ====================================== ADDED ====================================== */
 bool lock_insert_highest_priority(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED)
 {
   const struct lock *ta = list_entry(a, struct lock, elem);
   const struct lock *tb = list_entry(b, struct lock, elem);
   return ta->max_priority_in_waiters > tb->max_priority_in_waiters;
 }
-
-// /* ====================================== ADDED ====================================== */
-// /* Compares the value of two list elements A and B, given
-//    auxiliary data AUX (UNUSED).  Returns true if A is less than B, or
-//    false if A is greater than or equal to B respect to  priorty (descending)*/
-// bool
-// list_more_priorty(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED)
-// {
-//     const struct thread *ta = list_entry(a, struct thread, elem);
-//     const struct thread *tb = list_entry(b, struct thread, elem);
-//     return ta->priority > tb->priority;
-// }
 
 /* Sorts LIST according to LESS given auxiliary data AUX, using a
    natural iterative merge sort that runs in O(n lg n) time and
