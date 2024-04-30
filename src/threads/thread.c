@@ -24,7 +24,7 @@
    that are ready to run but not actually running. */
 static struct list ready_list;
 
-
+/* ==================================== Added =================================== */
 /* List of processes in THREAD_BLOCKED state, that is, processes
    that are blocked */
 static struct list sleep_list;
@@ -41,6 +41,9 @@ static struct thread *initial_thread;
 
 /* Lock used by allocate_tid(). */
 static struct lock tid_lock;
+
+/* ==================================== Added =================================== */
+static struct real load_avg;
 
 /* Stack frame for kernel_thread(). */
 struct kernel_thread_frame 
@@ -98,11 +101,11 @@ thread_init (void)
   list_init (&ready_list);
   list_init (&all_list);
   /* ==================================== Added =================================== */
-  // initialize sleep_list
+  // Initialize sleep_list
   list_init(&sleep_list);
 
   /* ==================================== Added =================================== */
-  // initialize min_global_ticks
+  // Initialize min_global_ticks
   min_global_ticks = INT64_MAX;
 
   /* Set up a thread structure for the running thread. */
@@ -110,6 +113,14 @@ thread_init (void)
   init_thread (initial_thread, "main", PRI_DEFAULT);
   initial_thread->status = THREAD_RUNNING;
   initial_thread->tid = allocate_tid ();
+
+  /* ==================================== Added =================================== */
+  // Initialize load_avg
+  load_avg = convert_int_to_real(0);
+  // Initialize nice for current thread
+  initial_thread->nice = 0;
+  // Initialize recent_cpu for current thread
+  initial_thread->recent_cpu = convert_int_to_real(0);
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -394,8 +405,9 @@ thread_yield (void)
   ASSERT (!intr_context ());
 
   old_level = intr_disable ();
-  if (cur != idle_thread) 
-    list_push_back (&ready_list, &cur->elem);
+  if (cur != idle_thread)
+    /* ==================================== Added =================================== */ 
+    list_insert_ordered(&ready_list, &cur->elem, list_more_priorty, NULL);
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
@@ -422,6 +434,10 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 {
+  /* ==================================== Added =================================== */
+  if (thread_mlfqs)
+    return;
+
   thread_current ()->priority = new_priority;
 }
 
@@ -432,35 +448,183 @@ thread_get_priority (void)
   return thread_current ()->priority;
 }
 
+/* ==================================== Added =================================== */
+// get number of threads that are ready and running thread if is
+int
+threads_get_ready_threads (void)
+{
+  int running = 0;
+  // Check current thread idle or running
+  if (thread_current() != idle_thread) running = 1;
+  return (list_size(&ready_list) + running);
+}
+
+/* ==================================== Added =================================== */
+// Increment recent_cpu by one
+void
+inc_recent_cpu(struct thread *t)
+{
+  if (t != idle_thread)
+    t->recent_cpu = add_real_to_int(t->recent_cpu, 1);
+}
+/* ==================================== Added =================================== */
+// Update recent_cpu
+void 
+thread_update_recent_cpu(struct thread *t)
+{
+  // 2 * load_avg
+  struct real op1 = multiply_real_by_int(load_avg, 2);
+  // (2 * load_avg) / (2 * load_avg + 1)
+  struct real op2 = divide_real_by_real(op1, add_real_to_int(op1, 1));
+  // (2 * load_avg) / (2 * load_avg + 1) * recent_cpu
+  struct real op3 = multiply_real_by_real(op2, t->recent_cpu);
+  // Finally => (2 * load_avg) / (2 * load_avg + 1) * recent_cpu + nice
+  t->recent_cpu = add_real_to_int(op3, t->nice);
+
+  thread_update_priorty_mlfqs(t);
+}
+
+/* ==================================== Added =================================== */
+// Update all thread recent_cpu
+void
+all_threads_update_recent_cpu (void)
+{
+  // enum intr_level old_level;
+  // old_level = intr_disable ();
+  // Update thread recent_cpu foreach
+  thread_foreach(thread_update_recent_cpu, NULL);
+
+  // intr_set_level (old_level);
+}
+
+/* ==================================== Added =================================== */
+// Update thread priorty (mlfqs)
+void
+thread_update_priorty_mlfqs(struct thread *t)
+{
+  // recent_cpu / 4
+  struct real op1 = divide_real_by_int(t->recent_cpu, 4);
+  // PRI_MAX - (recent_cpu / 4) - (nice * 2)
+  int priority = PRI_MAX - convert_real_to_int_towards_nearest(op1) - (t->nice * 2);
+
+  // Check if convertion lead to over flow or not
+  if (priority < PRI_MIN)
+    priority = PRI_MIN;
+  else if (priority < PRI_MAX)
+    priority = PRI_MAX;
+  
+  // Finally => PRI_MAX - (recent_cpu / 4) - (nice * 2)
+  t->priority = priority;
+}
+/* ==================================== Added =================================== */
+// Update each thread priority
+void
+each_thread_update_priorty_mlfqs (void)
+{
+  thread_update_priorty_mlfqs(thread_current());
+}
+
+/* ==================================== Added =================================== */
+// Update all thread priorty (mlfqs)
+void
+all_threads_update_priorty_mlfqs (void)
+{
+  enum intr_level old_level;
+  old_level = intr_disable ();
+  // Update thread priorty foreach (mlfqs)
+  thread_foreach(each_thread_update_priorty_mlfqs, NULL);
+  
+  // Sort all threads with respect to priorty
+  list_sort(&ready_list, list_more_priorty, NULL);
+  intr_set_level (old_level);
+}
+/* ==================================== Added =================================== */
+// Update load_avg
+void
+update_load_avg (void)
+{
+  // 59 / 60
+  struct real const1 = divide_real_by_real(convert_int_to_real(59), convert_int_to_real(60));
+  // (59 / 60) * load_avg
+  struct real op1  = multiply_real_by_real(const1, load_avg);
+  // 1 / 60 
+  struct real const2 = divide_real_by_real(convert_int_to_real(1), convert_int_to_real(60));
+  // (1 / 60) * ready_threads
+  struct real op2  = multiply_real_by_int(const2, threads_get_ready_threads());
+  // Finally => (59 / 60) * load_avg + (1 / 60) * ready_threads
+  load_avg = add_real_to_real(op1, op2);
+}
+/* ==================================== Added =================================== */
+// Reschedule threads
+void
+reschedule_threads (void)
+{
+    enum intr_level old_level;
+    old_level = intr_disable ();
+
+    struct thread *cur = thread_current();
+    struct thread *max_priority_thread = list_entry (list_front(&ready_list), struct thread, elem);
+
+    // Check if current thread priority less than max thread priority in ready_list
+    bool is_smaller = false;
+    if(cur->priority < max_priority_thread->priority)
+      is_smaller = true;
+
+    intr_set_level (old_level);
+
+    // but thread in ready_list if is_smaller
+    if (is_smaller)
+      thread_yield();
+}
+
 /* Sets the current thread's nice value to NICE. */
 void
 thread_set_nice (int nice UNUSED) 
 {
-  /* Not yet implemented. */
+  /* ==================================== Added =================================== */
+  thread_current()->nice = nice;
+
+  /* ==================================== Added =================================== */
+  // Update thread priority (mlfqs)
+  thread_update_priorty_mlfqs(thread_current());
+
+  /* ==================================== Added =================================== */
+  // Rescheduale threads
+  reschedule_threads();
 }
 
 /* Returns the current thread's nice value. */
 int
 thread_get_nice (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+  /* ==================================== Added =================================== */
+  return thread_current()->nice;
 }
 
 /* Returns 100 times the system load average. */
 int
 thread_get_load_avg (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+  /* ==================================== Added =================================== */
+  // Multiplay load_avg by 100
+  struct real mult = multiply_real_by_int(load_avg, 100);
+  // Convert reselt to nearst integer
+  return convert_real_to_int_towards_nearest(mult);
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
 int
 thread_get_recent_cpu (void) 
 {
-  /* Not yet implemented. */
-  return 0;
+  /* ==================================== Added =================================== */
+  // Get current thread
+  struct thread *cur = thread_current();
+  // Get current thread recent_cpu
+  struct real cur_recent_cpu = cur->recent_cpu;
+  // Multiplay it by 100
+  struct real mult = multiply_real_by_int(cur_recent_cpu, 100);
+  // Convert reselt to nearst integer
+  return convert_real_to_int_towards_nearest(mult);
 }
 
 /* Idle thread.  Executes when no other thread is ready to run.

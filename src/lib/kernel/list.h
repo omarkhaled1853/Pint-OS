@@ -173,6 +173,10 @@ bool list_less_time_to_wake_up(const struct list_elem *a,
                                const struct list_elem *b,
                                void *aux) ;
 
+bool list_more_priorty(const struct list_elem *a,
+                       const struct list_elem *b,
+                       void *aux) ;
+
 /* Operations on lists with ordered elements. */
 void list_sort (struct list *,
                 list_less_func *, void *aux);

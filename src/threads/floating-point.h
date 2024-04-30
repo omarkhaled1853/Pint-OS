@@ -1,4 +1,3 @@
-#include<stdio.h>
 #ifndef FIXED_POINT
 #define FIXED_POINT        
 

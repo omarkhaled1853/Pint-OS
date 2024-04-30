@@ -4,6 +4,8 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
+/* ==================================== Added =================================== */
+#include "threads/floating-point.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -96,8 +98,14 @@ struct thread
     struct list_elem allelem;           /* List element for all threads list. */
    
    /* ==================================== Added =================================== */
-   // local ticks time_to_wake_up for thread 
+   // Local ticks time_to_wake_up for thread 
     int64_t time_to_wake_up; 
+
+   /* ==================================== Added =================================== */
+   //  Nice value that affect priorty of thread in advanced priorty (mlfqs)
+    int nice;
+   //  Recent_cpu value that affect priorty of thread in advanced priorty (mlfqs)
+    struct real recent_cpu;
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
@@ -155,5 +163,19 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
+
+/* ==================================== Added =================================== */
+// Increment recent_cpu for running thread by one
+void inc_recent_cpu(struct thread *t);
+// Update thread recent_cpu
+void thread_update_recent_cpu(struct thread *t);
+// Update all threads recent_cpu
+void all_threads_update_recent_cpu(void);
+// Update thread priorty (mlfqs)
+void thread_update_priorty_mlfqs(struct thread *t);
+// Update all threads priorty
+void all_threads_update_priorty_mlfqs(void);
+// Update load_avg
+void update_load_avg(void);
 
 #endif /* threads/thread.h */

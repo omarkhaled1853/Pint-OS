@@ -404,10 +404,22 @@ inplace_merge (struct list_elem *a0, struct list_elem *a1b0,
    auxiliary data AUX (UNUSED).  Returns true if A is less than B, or
    false if A is greater than or equal to B respect to  time_to_wake_up (asccending)*/
 bool
-list_less_time_to_wake_up(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED) {
+list_less_time_to_wake_up(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED)
+{
     const struct thread *ta = list_entry(a, struct thread, elem);
     const struct thread *tb = list_entry(b, struct thread, elem);
     return ta->time_to_wake_up < tb->time_to_wake_up;
+}
+/* ====================================== ADDED ====================================== */
+/* Compares the value of two list elements A and B, given
+   auxiliary data AUX (UNUSED).  Returns true if A is less than B, or
+   false if A is greater than or equal to B respect to  priorty (descending)*/
+bool
+list_more_priorty(const struct list_elem *a, const struct list_elem *b, void *aux UNUSED)
+{
+    const struct thread *ta = list_entry(a, struct thread, elem);
+    const struct thread *tb = list_entry(b, struct thread, elem);
+    return ta->priority > tb->priority;
 }
 
 /* Sorts LIST according to LESS given auxiliary data AUX, using a
