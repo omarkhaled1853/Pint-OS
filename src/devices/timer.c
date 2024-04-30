@@ -7,6 +7,7 @@
 #include "threads/interrupt.h"
 #include "threads/synch.h"
 #include "threads/thread.h"
+#include <stdlib.h>
   
 /* See [8254] for hardware details of the 8254 timer chip. */
 
@@ -88,12 +89,13 @@ timer_elapsed (int64_t then)
    be turned on. */
 void
 timer_sleep (int64_t ticks) 
-{
+{  
   int64_t start = timer_ticks ();
-
   ASSERT (intr_get_level () == INTR_ON);
-  while (timer_elapsed (start) < ticks) 
-    thread_yield ();
+/* ==================================== Added =================================== */
+  // Check if time of sleeping thread with number of ticks that thread will sleep
+  if(ticks > 0 && timer_elapsed(start) < ticks)
+      thread_sleep(start + ticks);
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -172,6 +174,29 @@ timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
   thread_tick ();
+/* ==================================== Added =================================== */
+  /* Wake up threads until there isn't threads to wake up */
+  while (timer_ticks() >= min_global_ticks)
+    thread_wake_up();
+
+  /* ==================================== Added =================================== */
+  // Advanced priorty schedule (mlfqs)
+  // if (thread_mlfqs)
+  // {
+  // struct thread *cur = thread_current();
+  // // Increment recent_cpu by one each tick
+  //   inc_recent_cpu(cur);
+  //   // Update load_avg and all threads recent_cpu every 100 ticks
+  //   if (ticks % TIMER_FREQ == 0)
+  //   {
+  //     all_threads_update_recent_cpu_and_update_load_avg ();
+  //   }
+  //   // Update all threads priority every 4 ticks
+  //   else if (ticks % TIME_SLICE == 0)
+  //   {
+  //     all_threads_update_priorty_mlfqs ();
+  //   }
+  // }  
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
