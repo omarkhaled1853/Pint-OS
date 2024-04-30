@@ -1,5 +1,6 @@
 #include "list.h"
 #include "threads/thread.h" 
+#include"threads/synch.h"
 #include "../debug.h"
 
 /* Our doubly linked lists have two header elements: the "head"
@@ -408,6 +409,21 @@ list_less_time_to_wake_up(const struct list_elem *a, const struct list_elem *b, 
     const struct thread *tb = list_entry(b, struct thread, elem);
     return ta->time_to_wake_up < tb->time_to_wake_up;
 }
+//================================added==================================================
+bool
+thread_insert_less_head (const struct list_elem *a, const struct list_elem *b, void *aux UNUSED){
+    const struct thread *ta = list_entry(a, struct thread, elem);
+    const struct thread *tb = list_entry(b, struct thread, elem);
+    return ta-> effPriority >= tb-> effPriority;
+}
+bool
+lock_insert_highest_priority(const struct  list_elem *a, const struct list_elem *b, void *aux UNUSED){
+    const struct lock *ta = list_entry(a, struct lock, elem);
+    const struct lock *tb = list_entry(b, struct lock, elem);
+    return ta->max_priority_in_waiters >= tb->max_priority_in_waiters;
+}
+//================================added==================================================
+
 
 /* Sorts LIST according to LESS given auxiliary data AUX, using a
    natural iterative merge sort that runs in O(n lg n) time and

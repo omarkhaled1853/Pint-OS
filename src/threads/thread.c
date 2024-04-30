@@ -210,6 +210,7 @@ thread_create (const char *name, int priority,
 
   /* Add to run queue. */
   thread_unblock (t);
+  thread_yield(); //added
 
   return tid;
 }
@@ -247,7 +248,7 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  list_push_back (&ready_list, &t->elem);
+  list_insert_ordered(&ready_list, &t->elem,thread_insert_less_head,NULL);
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
@@ -384,7 +385,7 @@ thread_yield (void)
 
   old_level = intr_disable ();
   if (cur != idle_thread) 
-    list_push_back (&ready_list, &cur->elem);
+    list_insert_ordered(&ready_list, &cur->elem,thread_insert_less_head,NULL);
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
@@ -411,7 +412,22 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 {
+//======================================added==============================================
+  enum intr_level old_level;
+  old_level = intr_disable ();
+  bool is_changed = false;
   thread_current ()->priority = new_priority;
+  if(list_empty(&thread_current()->owned_locks) || thread_current()->effPriority < new_priority)
+  {
+      thread_current()->effPriority = new_priority;
+      is_changed = true;
+  } 
+  intr_set_level (old_level);
+  if(is_changed)
+  {
+        thread_yield();
+  }
+//======================================added==============================================
 }
 
 /* Returns the current thread's priority. */
@@ -538,10 +554,15 @@ init_thread (struct thread *t, const char *name, int priority)
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
+//===================================added==========================
+  t->effPriority=priority;  
+  list_init(&t->owned_locks); 
+//===================================added==========================
+
   t->magic = THREAD_MAGIC;
 
   old_level = intr_disable ();
-  list_push_back (&all_list, &t->allelem);
+  list_insert_ordered(&all_list, &t->allelem,thread_insert_less_head,NULL);
   intr_set_level (old_level);
 }
 

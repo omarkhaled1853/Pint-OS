@@ -158,14 +158,20 @@ bool list_empty (struct list *);
 
 /* Miscellaneous. */
 void list_reverse (struct list *);
-
+
 /* Compares the value of two list elements A and B, given
    auxiliary data AUX.  Returns true if A is less than B, or
    false if A is greater than or equal to B. */
 typedef bool list_less_func (const struct list_elem *a,
                              const struct list_elem *b,
                              void *aux);
-// (Added)
+//================================================added=============================
+bool thread_insert_less_head(const struct list_elem *lhs, const struct list_elem *rhs, void *aux);
+
+bool lock_insert_highest_priority(const struct list_elem *a, const struct list_elem *b, void *aux);
+//================================================added========================
+
+
 bool list_less_time_to_wake_up(const struct list_elem *a,
                                const struct list_elem *b,
                                void *aux) ;

@@ -92,7 +92,10 @@ struct thread
     uint8_t *stack;                     /* Saved stack pointer. */
     int priority;                       /* Priority. */
     struct list_elem allelem;           /* List element for all threads list. */
-   
+    int effPriority; //added
+    struct list owned_locks; //added
+    struct lock *wait_on_lock; //added 
+
    // local ticks
     int64_t time_to_wake_up; 
    //  struct list_elem sleep_elem;   
