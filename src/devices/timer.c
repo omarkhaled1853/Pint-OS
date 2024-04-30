@@ -181,22 +181,22 @@ timer_interrupt (struct intr_frame *args UNUSED)
 
   /* ==================================== Added =================================== */
   // Advanced priorty schedule (mlfqs)
-  // if (thread_mlfqs)
-  // {
-  // struct thread *cur = thread_current();
-  // // Increment recent_cpu by one each tick
-  //   inc_recent_cpu(cur);
-  //   // Update load_avg and all threads recent_cpu every 100 ticks
-  //   if (ticks % TIMER_FREQ == 0)
-  //   {
-  //     all_threads_update_recent_cpu_and_update_load_avg ();
-  //   }
-  //   // Update all threads priority every 4 ticks
-  //   else if (ticks % TIME_SLICE == 0)
-  //   {
-  //     all_threads_update_priorty_mlfqs ();
-  //   }
-  // }  
+  if (thread_mlfqs)
+  {
+  struct thread *cur = thread_current();
+  // Increment recent_cpu by one each tick
+    inc_recent_cpu(cur);
+    // Update load_avg and all threads recent_cpu every 100 ticks
+    if (ticks % TIMER_FREQ == 0)
+    {
+      all_threads_update_recent_cpu_and_update_load_avg ();
+    }
+    // Update all threads priority every 4 ticks
+    else if (ticks % TIME_SLICE == 0)
+    {
+      all_threads_update_priorty_mlfqs ();
+    }
+  }  
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer

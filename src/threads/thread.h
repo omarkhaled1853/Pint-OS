@@ -3,7 +3,8 @@
 
 #include <debug.h>
 #include <list.h>
-#include <stdint.h>
+/* ==================================== Added =================================== */
+#include "floating-point.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -24,7 +25,9 @@ typedef int tid_t;
 #define PRI_DEFAULT 31 /* Default priority. */
 #define PRI_MAX 63     /* Highest priority. */
 
-// min global ticks ()
+/* ====================================== ADDED ====================================== */
+/* Min global ticks updated for the first min time_to_wake_up ticks 
+   for each thread in sleep_list */
 int64_t min_global_ticks;
 
 /* A kernel thread or user process.
@@ -95,10 +98,16 @@ struct thread
    int effPriority;           // added
    struct list owned_locks;   // added
    struct lock *wait_on_lock; // added
+   
+   /* ==================================== Added =================================== */
+   // Local ticks time_to_wake_up for thread 
+    int64_t time_to_wake_up; 
 
-   // local ticks
-   int64_t time_to_wake_up;
-   //  struct list_elem sleep_elem;
+   /* ==================================== Added =================================== */
+   //  Nice value that affect priorty of thread in advanced priorty (mlfqs)
+    int nice;
+   //  Recent_cpu value that affect priorty of thread in advanced priorty (mlfqs)
+    struct real recent_cpu;
 
    /* Shared between thread.c and synch.c. */
    struct list_elem elem; /* List element. */
@@ -120,8 +129,9 @@ extern bool thread_mlfqs;
 void thread_init(void);
 void thread_start(void);
 
-void thread_tick(void);
-void thread_print_stats(void);
+void thread_tick (void);
+void thread_print_stats (void);
+void reschedule_threads (void);
 
 typedef void thread_func(void *aux);
 tid_t thread_create(const char *name, int priority, thread_func *, void *);
@@ -156,6 +166,22 @@ void thread_set_nice(int);
 int thread_get_recent_cpu(void);
 int thread_get_load_avg(void);
 
+/* ==================================== Added =================================== */
 void update_thread_priority(struct thread *t);
 void update_ready_list(struct thread *t);
+
+/* ==================================== Added =================================== */
+// Increment recent_cpu for running thread by one
+void inc_recent_cpu(struct thread *t);
+// Update thread recent_cpu
+void thread_update_recent_cpu(struct thread *t);
+// Update all threads recent_cpu
+void all_threads_update_recent_cpu(void);
+// Update thread priorty (mlfqs)
+void thread_update_priorty_mlfqs(struct thread *t);
+// Update all threads priorty
+void all_threads_update_priorty_mlfqs(void);
+// Update load_avg
+void update_load_avg(void);
+
 #endif /* threads/thread.h */
