@@ -98,8 +98,8 @@ void thread_init(void)
   // initialize sleep_list
   list_init(&sleep_list);
 
-  // // initialize min_global_ticks
-  // min_global_ticks = INT64_MAX;
+  // initialize min_global_ticks
+  min_global_ticks = INT64_MAX;
 
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread();
@@ -217,7 +217,7 @@ tid_t thread_create(const char *name, int priority,
    primitives in synch.h. */
 void thread_block(void)
 {
-  // ASSERT (!intr_context ());
+  ASSERT (!intr_context ());
   ASSERT(intr_get_level() == INTR_OFF);
 
   thread_current()->status = THREAD_BLOCKED;
@@ -254,7 +254,7 @@ void thread_sleep(int64_t time_to_wake_up)
 
   enum intr_level old_level;
 
-  // ASSERT (!intr_context ());
+  ASSERT (!intr_context ());
 
   old_level = intr_disable();
   if (cur != idle_thread)
@@ -350,7 +350,7 @@ tid_t thread_tid(void)
    returns to the caller. */
 void thread_exit(void)
 {
-  // ASSERT (!intr_context ());
+  ASSERT (!intr_context ());
 
 #ifdef USERPROG
   process_exit();
@@ -373,7 +373,7 @@ void thread_yield(void)
   struct thread *cur = thread_current();
   enum intr_level old_level;
 
-  // ASSERT (!intr_context ());
+  ASSERT (!intr_context ());
 
   old_level = intr_disable();
   if (cur != idle_thread)
@@ -402,6 +402,8 @@ void thread_foreach(thread_action_func *func, void *aux)
 /* Sets the current thread's priority to NEW_PRIORITY. */
 void thread_set_priority(int new_priority)
 {
+  if(thread_mlfqs)
+    return;
   //======================================added==============================================
   enum intr_level old_level;
   old_level = intr_disable();
@@ -423,7 +425,7 @@ void thread_set_priority(int new_priority)
 /* Returns the current thread's priority. */
 int thread_get_priority(void)
 {
-  return thread_current()->priority;
+  return thread_current()->effPriority;
 }
 
 /* Sets the current thread's nice value to NICE. */
@@ -539,12 +541,13 @@ init_thread(struct thread *t, const char *name, int priority)
   strlcpy(t->name, name, sizeof t->name);
   t->stack = (uint8_t *)t + PGSIZE;
   t->priority = priority;
+
+  t->magic = THREAD_MAGIC;
   //===================================added==========================
   t->effPriority = priority;
   list_init(&t->owned_locks);
+  t->wait_on_lock = NULL;
   //===================================added==========================
-
-  t->magic = THREAD_MAGIC;
 
   old_level = intr_disable();
   list_insert_ordered(&all_list, &t->allelem, thread_insert_less_head, NULL);
@@ -659,13 +662,20 @@ allocate_tid(void)
 
   return tid;
 }
+
+
+/* Offset of `stack' member within `struct thread'.
+   Used by switch.S, which can't figure it out on its own. */
+
+uint32_t thread_stack_ofs = offsetof(struct thread, stack);
+
+
 void update_thread_priority(struct thread *t)
 {
   // interrupt disable
   enum intr_level old_level = intr_disable();
 
   int max_priority = t->priority;
-
   // handle multiple donation, if the process donated from another lock take the max priority
   // from all owned locks
   if (!list_empty(&t->owned_locks))
@@ -679,8 +689,8 @@ void update_thread_priority(struct thread *t)
     }
   }
   t->effPriority = max_priority;
-  update_ready_list(t);
 
+  update_ready_list(t);
   intr_set_level(old_level);
 }
 
@@ -697,7 +707,3 @@ void update_ready_list(struct thread *t)
 
   intr_set_level(old_level);
 }
-
-/* Offset of `stack' member within `struct thread'.
-   Used by switch.S, which can't figure it out on its own. */
-uint32_t thread_stack_ofs = offsetof(struct thread, stack);
