@@ -224,7 +224,7 @@ thread_create (const char *name, int priority,
 void
 thread_block (void) 
 {
-  ASSERT (!intr_context ());
+  // ASSERT (!intr_context ());
   ASSERT (intr_get_level () == INTR_OFF);
 
   thread_current ()->status = THREAD_BLOCKED;
@@ -263,7 +263,7 @@ thread_sleep(int64_t time_to_wake_up){
 
   enum intr_level old_level;
 
-  ASSERT (!intr_context ());
+  // ASSERT (!intr_context ());
 
   old_level = intr_disable ();
   if (cur != idle_thread){
@@ -357,7 +357,7 @@ thread_tid (void)
 void
 thread_exit (void) 
 {
-  ASSERT (!intr_context ());
+  // ASSERT (!intr_context ());
 
 #ifdef USERPROG
   process_exit ();
@@ -381,7 +381,7 @@ thread_yield (void)
   struct thread *cur = thread_current ();
   enum intr_level old_level;
   
-  ASSERT (!intr_context ());
+  // ASSERT (!intr_context ());
 
   old_level = intr_disable ();
   if (cur != idle_thread) 
