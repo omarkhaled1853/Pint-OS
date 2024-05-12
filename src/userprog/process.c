@@ -19,6 +19,8 @@
 #include "threads/vaddr.h"
 
 static thread_func start_process NO_RETURN;
+struct child_process *find_child_process(int pid);
+void remove_child_process (struct child_process *cp);
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
 /* Starts a new thread running a user program loaded from
@@ -86,11 +88,54 @@ start_process (void *file_name_)
    This function will be implemented in problem 2-2.  For now, it
    does nothing. */
 int
-process_wait (tid_t child_tid UNUSED) 
+process_wait (tid_t child_tid ) 
 {
-  return -1;
+  struct child_process* child_process_ptr = find_child_process(child_tid);
+  if (!child_process_ptr)
+  {
+    return -1;
+  }
+  // if it already waited very treky!!!!!!
+  if (child_process_ptr->wait)
+  {
+    return -1 ;
+  }
+  child_process_ptr->wait = 1; // set wait for child to 1 to be waited
+  while (!child_process_ptr->exit)  // busy waiting loop  until parent wakes up 
+  {
+    asm volatile ("" : : : "memory");
+  }
+  int status = child_process_ptr->status;
+  remove_child_process(child_process_ptr);
+  return status;
 }
-
+//added 
+struct child_process *find_child_process(int pid)
+{
+  struct thread *t = thread_current();
+  struct list_elem *e;
+  struct list_elem *next;
+  
+    // Iterate through the list of thread IDs
+ for (e = list_begin(&t->Child_process_list); e != list_end(&t->Child_process_list); e = next)
+     {
+     next = list_next(e);
+     struct child_process *cp = list_entry(e, struct child_process, elem);
+      if (pid == cp->pid)
+      {
+        return cp;
+      }
+  }
+  // not founded
+  return NULL;
+}
+//added
+void
+remove_child_process (struct child_process *cp)
+{
+  list_remove(&cp->elem);
+  free(cp);
+}
 /* Free the current process's resources. */
 void
 process_exit (void)

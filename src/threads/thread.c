@@ -22,6 +22,7 @@
 
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
+struct child_process *create_child_process(tid_t tid);
 static struct list ready_list;
 
 /* List of all processes.  Processes are added to this list
@@ -182,7 +183,6 @@ thread_create (const char *name, int priority,
   /* Initialize thread. */
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
-
   /* Stack frame for kernel_thread(). */
   kf = alloc_frame (t, sizeof *kf);
   kf->eip = NULL;
@@ -197,7 +197,12 @@ thread_create (const char *name, int priority,
   sf = alloc_frame (t, sizeof *sf);
   sf->eip = switch_entry;
   sf->ebp = 0;
-
+  // start added for waiting
+  // current thread is the parent thread 
+  t->parent_thread=thread_tid();  // give chiled his parent thread 
+  struct child_process *CL = create_child_process(t->tid);
+  t->child = CL;
+  ///final 
   /* Add to run queue. */
   thread_unblock (t);
 
@@ -564,6 +569,18 @@ schedule (void)
     prev = switch_threads (cur, next);
   thread_schedule_tail (prev);
 }
+// added  creation of child process 
+struct child_process* create_child_process (int pid)
+{
+  struct child_process *cp = malloc(sizeof(struct child_process)); // alocate in memory
+  cp->pid = pid;
+  cp->wait = 0; // initialy
+  cp->exit = 0; //initialy
+  list_push_back(&thread_current()->Child_process_list, &cp->elem);
+  
+  return cp;
+}
+
 
 /* Returns a tid to use for a new thread. */
 static tid_t
