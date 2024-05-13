@@ -2,7 +2,6 @@
 #define FILESYS_FILE_H
 
 #include "filesys/off_t.h"
-
 struct inode;
 
 /* Opening and closing files. */
@@ -20,7 +19,6 @@ off_t file_write_at (struct file *, const void *, off_t size, off_t start);
 /* Preventing writes. */
 void file_deny_write (struct file *);
 void file_allow_write (struct file *);
-
 /* File position. */
 void file_seek (struct file *, off_t);
 off_t file_tell (struct file *);

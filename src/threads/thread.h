@@ -89,6 +89,11 @@ typedef int tid_t;
    struct list_elem elem;
    
   };
+  struct process_file {
+   int f_d; // ++ with every files creation in the list 
+   struct file* file;
+   struct list_elem elem;
+  };
 struct thread
   {
     /* Owned by thread.c. */
@@ -102,11 +107,13 @@ struct thread
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
 
-#ifdef USERPROG
+// #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
-#endif
+// #endif
     // added for waiting process
+    struct list open_files_list;
+    struct file* exutable_file;
     struct list Child_process_list;
     struct child_process *child;
     tid_t parent_thread;

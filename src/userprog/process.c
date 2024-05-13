@@ -17,6 +17,7 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "syscall.h"
 
 static thread_func start_process NO_RETURN;
 struct child_process *find_child_process(int pid);
@@ -142,6 +143,26 @@ process_exit (void)
 {
   struct thread *cur = thread_current ();
   uint32_t *pd;
+  //added 
+  lock_acquire(&files_lock);   /// aquire lock 
+  process_close_file(-1); // close all files of this thread 
+  if(cur->exutable_file) //close exutable file 
+  {
+    file_close(cur->exutable_file);
+  }
+  lock_release(&files_lock);
+  remove_all_child();
+  //
+
+
+
+  
+  // needed to implement wake up of all child
+
+
+
+  //
+
 
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
@@ -160,6 +181,22 @@ process_exit (void)
       pagedir_destroy (pd);
     }
 }
+//added
+void
+  remove_all_child(void)
+  {
+    struct thread *t = thread_current();
+    struct list_elem *next;
+    struct list_elem *e = list_begin(&t->Child_process_list);
+  
+  for (;e != list_end(&t->Child_process_list); e = next)
+  {
+    next = list_next(e);
+    struct child_process *cp = list_entry(e, struct child_process, elem);
+    remove_child_process(&cp);
+  }
+  }
+
 
 /* Sets up the CPU for running user code in the current
    thread.
