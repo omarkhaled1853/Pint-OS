@@ -38,8 +38,24 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
+  /* ======================================== ADDED ======================================== */
+  // Parent wait for child to know if child creation is succesfull
+
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+
+/* ======================================== ADDED ======================================== */
+  // Parent thread is still here
+  // Child thread is run start_process function
+  // Parent thread must wait for child
+
+/* ======================================== ADDED ======================================== */
+  // Parent wake up and block its child
+  // Check parent_thread->child_success
+  // if (not success)
+  // error or exit and un block its child
+  // else continue
+
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
   return tid;
@@ -60,6 +76,9 @@ start_process (void *file_name_)
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
+
+/* ======================================== ADDED ======================================== */
+// Push arguments in stack
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
@@ -88,6 +107,10 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
+  /* ======================================== ADDED ======================================== */
+  // Bussy waiting
+  while (true)
+    thread_yield();
   return -1;
 }
 
@@ -311,6 +334,10 @@ load (const char *file_name, void (**eip) (void), void **esp)
   success = true;
 
  done:
+  /* ======================================== ADDED ======================================== */
+  //  Deny file write
+  file_deny_write(file);
+
   /* We arrive here whether the load is successful or not. */
   file_close (file);
   return success;
@@ -437,7 +464,9 @@ setup_stack (void **esp)
     {
       success = install_page (((uint8_t *) PHYS_BASE) - PGSIZE, kpage, true);
       if (success)
-        *esp = PHYS_BASE;
+       /* ======================================== ADDED ======================================== */
+        *esp = PHYS_BASE - 12;
+        // *esp = PHYS_BASE;
       else
         palloc_free_page (kpage);
     }

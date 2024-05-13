@@ -98,6 +98,26 @@ struct thread
     uint32_t *pagedir;                  /* Page directory. */
 #endif
 
+/* ======================================== ADDED ======================================== */
+   // List of children threads
+   struct list children_threads;
+   // Pointer to parent thread
+   struct thread *parent_thread;
+   // List of open files
+   struct list open_files;
+   // Pointer to current executable file
+   struct file *executable_file;
+   // Boolean for child success status
+   bool child_success_status;
+   // List of children that parent wait for
+   struct semaphore wait_child;
+   // Child status to return it to parent
+   int child_status;
+   // Current thread that parent waitting on
+   tid_t *waiting_on;
+   // File descriptor counter for last openned file 
+   int fd_last;
+
     /* Owned by thread.c. */
     unsigned magic;                     /* Detects stack overflow. */
   };

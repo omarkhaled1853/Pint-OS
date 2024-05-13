@@ -183,6 +183,13 @@ thread_create (const char *name, int priority,
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
 
+  /* ======================================== ADDED ======================================== */
+  // Current thread is parent_thread (parent thread create its child)
+  // t is chiled thread for parent_thread
+  // parent_thread->child = t
+  // t->parent = parent_thread
+  // communication link
+
   /* Stack frame for kernel_thread(). */
   kf = alloc_frame (t, sizeof *kf);
   kf->eip = NULL;
@@ -463,6 +470,14 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
   t->magic = THREAD_MAGIC;
+
+/* ======================================== ADDED ======================================== */
+  //  Intialize children_threads
+  list_init(&t->children_threads);
+  // Intialize open_files
+  list_init(&t->open_files);
+  // Intialize sempaphore waiting child
+  sema_init(&t->wait_child, 0);
 
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
