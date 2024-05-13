@@ -92,22 +92,20 @@ int
 process_wait (tid_t child_tid ) 
 {
   struct child_process* child_process_ptr = find_child_process(child_tid);
-  if (!child_process_ptr)
+  lock_acquire(&thread_current()->wait_lock);
+  if (!child_process_ptr || child_process_ptr->wait)// if it already waited very treky!!!!!!
   {
+    lock_release(&thread_current()->wait_lock);
     return -1;
-  }
-  // if it already waited very treky!!!!!!
-  if (child_process_ptr->wait)
-  {
-    return -1 ;
   }
   child_process_ptr->wait = 1; // set wait for child to 1 to be waited
   while (!child_process_ptr->exit)  // busy waiting loop  until parent wakes up 
   {
-    asm volatile ("" : : : "memory");
+   thread_yield();
   }
   int status = child_process_ptr->status;
   remove_child_process(child_process_ptr);
+  lock_release(&thread_current()->wait_lock);
   return status;
 }
 //added 
@@ -156,7 +154,7 @@ process_exit (void)
 
 
 
-  
+
   // needed to implement wake up of all child
 
 

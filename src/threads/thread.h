@@ -117,6 +117,7 @@ struct thread
     struct list Child_process_list;
     struct child_process *child;
     tid_t parent_thread;
+    struct lock wait_lock;
     //added
 
     /* Owned by thread.c. */
