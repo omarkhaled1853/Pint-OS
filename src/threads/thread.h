@@ -4,6 +4,7 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
+#include <threads/synch.h>
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -80,6 +81,25 @@ typedef int tid_t;
    only because they are mutually exclusive: only a thread in the
    ready state is on the run queue, whereas only a thread in the
    blocked state is on a semaphore wait list. */
+
+ /* ======================================== ADDED ======================================== */
+struct child_process
+{
+   tid_t pid;
+   int wait;
+   int status;
+   int exit;
+   struct list_elem elem;
+   struct lock child_lock;
+};
+ /* ======================================== ADDED ======================================== */
+struct process_file
+{
+   int fd; // ++ with every files creation in the list 
+   struct file* file;
+   struct list_elem elem;
+};
+
 struct thread
   {
     /* Owned by thread.c. */
@@ -113,6 +133,8 @@ struct thread
    struct semaphore wait_child;
    // Child status to return it to parent
    int child_status;
+   // Exit status
+   int exit_status;
    // Current thread that parent waitting on
    tid_t *waiting_on;
    // File descriptor counter for last openned file 
