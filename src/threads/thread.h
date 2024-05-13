@@ -87,6 +87,7 @@ typedef int tid_t;
    int status;
    int exit;
    struct list_elem elem;
+   struct lock child_lock;
    
   };
   struct process_file {
@@ -118,6 +119,7 @@ struct thread
     struct child_process *child;
     tid_t parent_thread;
     struct lock wait_lock;
+    int waitted;
     //added
 
     /* Owned by thread.c. */

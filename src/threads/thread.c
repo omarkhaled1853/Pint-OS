@@ -199,7 +199,7 @@ thread_create (const char *name, int priority,
   sf->ebp = 0;
   // start added for waiting
   // current thread is the parent thread 
-  t->parent_thread=thread_tid();  // give chiled his parent thread 
+  t->parent_thread = thread_tid();  // give chiled his parent thread 
   struct child_process *CL = create_child_process(t->tid);
   t->child = CL;
   ///final 
@@ -577,7 +577,6 @@ struct child_process* create_child_process (int pid)
   cp->wait = 0; // initialy
   cp->exit = 0; //initialy
   list_push_back(&thread_current()->Child_process_list, &cp->elem);
-  
   return cp;
 }
 

@@ -1,6 +1,7 @@
 #include <thread.h>
 #ifndef USERPROG_SYSCALL_H
 #define USERPROG_SYSCALL_H
+#define close_all -1 
 //added file sestem lock
 struct lock files_lock;
 //added 
@@ -14,7 +15,7 @@ void process_close_file(int file_descriptor) {
   for (; element != list_end(&current_thread->open_files_list); element = next_element) {
     next_element = list_next(element);
     struct process_file *file_ptr = list_entry(element, struct process_file, elem);
-    if (file_descriptor == file_ptr->f_d || file_descriptor == -1) {
+    if (file_descriptor == file_ptr->f_d || file_descriptor == close_all) {
       file_close(file_ptr->file);
       list_remove(&file_ptr->elem);
       free(file_ptr);

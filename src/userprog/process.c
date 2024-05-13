@@ -33,7 +33,7 @@ process_execute (const char *file_name)
 {
   char *fn_copy;
   tid_t tid;
-
+  
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
@@ -92,20 +92,18 @@ int
 process_wait (tid_t child_tid ) 
 {
   struct child_process* child_process_ptr = find_child_process(child_tid);
-  lock_acquire(&thread_current()->wait_lock);
   if (!child_process_ptr || child_process_ptr->wait)// if it already waited very treky!!!!!!
   {
-    lock_release(&thread_current()->wait_lock);
     return -1;
   }
   child_process_ptr->wait = 1; // set wait for child to 1 to be waited
-  while (!child_process_ptr->exit)  // busy waiting loop  until parent wakes up 
+  if (!child_process_ptr->exit)  // parent wakes up untill signal 
   {
-   thread_yield();
+    sema_up(&child_process_ptr->child_lock);
+    sema_down(&thread_current()->wait_lock); 
   }
   int status = child_process_ptr->status;
   remove_child_process(child_process_ptr);
-  lock_release(&thread_current()->wait_lock);
   return status;
 }
 //added 
@@ -152,16 +150,9 @@ process_exit (void)
   remove_all_child();
   //
 
-
-
-
   // needed to implement wake up of all child
-
-
-
+  //wake up children 
   //
-
-
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;
