@@ -180,6 +180,7 @@ thread_create (const char *name, int priority,
   if (t == NULL)
     return TID_ERROR;
 
+   
   /* Initialize thread. */
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
@@ -197,12 +198,7 @@ thread_create (const char *name, int priority,
   sf = alloc_frame (t, sizeof *sf);
   sf->eip = switch_entry;
   sf->ebp = 0;
-  // start added for waiting
-  // current thread is the parent thread 
-  t->parent_thread=thread_tid();  // give chiled his parent thread 
-  struct child_process *CL = create_child_process(t->tid);
-  t->child = CL;
-  ///final 
+  
   /* Add to run queue. */
   thread_unblock (t);
 
@@ -469,6 +465,27 @@ init_thread (struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->magic = THREAD_MAGIC;
 
+  t->exit_status = 0;
+  t->child_exit_status = -1;
+  t->child_create_success = false;  
+  t->the_child_i_wait_for=-1;
+  
+   /*to make semaphore blocking*/
+  sema_init(&t->parent_child_sync,0);
+  list_init(&t->Child_process_list);
+  list_init(&t->open_files_list);
+  
+/*here i set the parent only for setting the child we must know exactly that the thread is truly created*/
+  if(t==initial_thread)
+  {
+        t->parent=NULL;  // I am the top ancestor
+  } 
+  else
+  {
+       t->parent=thread_current();
+  } 
+
+
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
   intr_set_level (old_level);
@@ -570,16 +587,16 @@ schedule (void)
   thread_schedule_tail (prev);
 }
 // added  creation of child process 
-struct child_process* create_child_process (int pid)
-{
-  struct child_process *cp = malloc(sizeof(struct child_process)); // alocate in memory
-  cp->pid = pid;
-  cp->wait = 0; // initialy
-  cp->exit = 0; //initialy
-  list_push_back(&thread_current()->Child_process_list, &cp->elem);
+// struct child_process* create_child_process (int pid)
+// {
+//   struct child_process *cp = malloc(sizeof(struct child_process)); // alocate in memory
+//   cp->pid = pid;
+//   cp->wait = 0; // initialy
+//   cp->exit = 0; //initialy
+//   list_push_back(&thread_current()->Child_process_list, &cp->elem);
   
-  return cp;
-}
+//   return cp;
+// }
 
 
 /* Returns a tid to use for a new thread. */

@@ -4,7 +4,7 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
-
+#include<threads/synch.h>
 /* States in a thread's life cycle. */
 enum thread_status
   {
@@ -81,14 +81,14 @@ typedef int tid_t;
    ready state is on the run queue, whereas only a thread in the
    blocked state is on a semaphore wait list. */
 //added
-  struct child_process{
-   tid_t pid;
-   int wait;
-   int status;
-   int exit;
-   struct list_elem elem;
-   
-  };
+//   struct child_process{
+//    tid_t pid;
+//    int wait;
+//    int status;
+//    int exit;
+//    struct list_elem elem;
+//    struct lock child_lock;
+//   };
   struct process_file {
    int f_d; // ++ with every files creation in the list 
    struct file* file;
@@ -105,19 +105,27 @@ struct thread
     struct list_elem allelem;           /* List element for all threads list. */
    
     /* Shared between thread.c and synch.c. */
-    struct list_elem elem;              /* List element. */
+    struct list_elem elem;              /* List element. */ 
 
-// #ifdef USERPROG
+    int exit_status;              /*my exit status*/
+    int child_exit_status;        /* if my child leaves the system for any reason i need to know its status*/
+    struct list open_files_list;  /*open files*/
+    struct file* exutable_file;   /*code to execute*/
+    bool child_create_success;    /*boolean to check if child create is successful*/
+    struct list Child_process_list;  /*list of children*/
+    struct list_elem child_elem;     /* to be put in a list if i am a child of some one*/
+    tid_t the_child_i_wait_for;
+    struct thread *parent;         /*parent*/       
+    struct semaphore parent_child_sync;   //making parent wait on his child
+   
+
+ #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
-// #endif
+ #endif
     // added for waiting process
-    struct list open_files_list;
-    struct file* exutable_file;
-    struct list Child_process_list;
-    struct child_process *child;
-    tid_t parent_thread;
-    struct lock wait_lock;
+   
+ 
     //added
 
     /* Owned by thread.c. */
