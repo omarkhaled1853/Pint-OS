@@ -20,7 +20,7 @@
 #include "userprog/syscall.h"
 
 static thread_func start_process NO_RETURN;
-struct thread *find_child_process(int tid);
+struct thread *find_child_process(tid_t tid);
 void remove_child_process (struct thread *cp);
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
@@ -122,10 +122,9 @@ process_wait(tid_t child_tid)
      struct thread *child=find_child_process(child_tid);
      if(child!=NULL)
      {  
-        
           list_remove(&child->child_elem);
           sema_up(&child->parent_child_sync);  //allow child to execute;
-          sema_down(&thread_current()->parent_child_sync); //make parent wait
+          sema_down(&thread_current()->parent_allow_child_to_execute); //make parent wait
           return thread_current()->child_exit_status;
      }
     
@@ -133,25 +132,22 @@ process_wait(tid_t child_tid)
 
 }
 //added 
-struct thread *find_child_process(int tid)
+struct thread *find_child_process(tid_t tid)
 {
-   struct thread *t = thread_current();
-   struct list_elem *e;
-   struct list_elem *next;
-  
-     // Iterate through the list of thread IDs
-  for (e = list_begin(&t->Child_process_list); e != list_end(&t->Child_process_list); e = next)
+  struct thread *current = thread_current();
+  struct list *children = &current->Child_process_list;
+  struct list_elem *iter = list_begin(children);
+
+  while (iter != list_end(children))
+  {
+    struct thread *this = list_entry(iter, struct thread, child_elem);
+    iter = list_next(iter);
+    if (this->tid == tid)
     {
-       struct thread *x=list_entry(e,struct thread,child_elem);       
-       if(x->tid==tid)
-       {
-         return x;
-       } 
-       next = list_next(e);
-       
-   }
-   // not founded
-   return NULL;
+      return this;
+    }
+  }
+  return NULL;
 }
 //added
 void
@@ -165,7 +161,7 @@ void
 process_exit (void)
 {
   struct thread *cur = thread_current ();
-  uint32_t *pd;
+ 
 
    if(cur->parent!=NULL)  /*i have parent*/
    { 
@@ -175,22 +171,22 @@ process_exit (void)
           parent->child_exit_status=cur->exit_status;
           parent->child_create_success=false;
           parent->the_child_i_wait_for=-1;
-          sema_up(&parent->parent_child_sync); /*allow parent to rework*/
+          sema_up(&parent->parent_allow_child_to_execute); /*allow parent to rework*/
       }
    }
   //added 
   //lock_acquire(&files_lock);   /// aquire lock 
   //process_close_file(-1); // close all files of this thread 
-  if(cur->exutable_file!=NULL) //close exutable file 
-  {
+   //close exutable file 
+  
     file_close(cur->exutable_file);
-  }
-  //lock_release(&files_lock);
+  thread_current()->parent = NULL;
+  thread_current()->exutable_file = NULL;
   remove_all_child();
  
+    uint32_t *pd;
 
-
-  /* Destroy the current process's page directory and switch back
+  /* Destroy the current process'sz page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;
   if (pd != NULL) 
@@ -329,10 +325,13 @@ load (const char *file_name, void (**eip) (void), void **esp)   /*loads the chil
   /*we want to open the exe file here (first token of file name) */
   
   char* copy;
+  char* file_name_cpoy;
   char* ptr;
   int length=strlen(file_name)+1;
-  copy=malloc(length);           
-  strlcpy(copy,file_name,length);  
+  copy = malloc(length);           
+  file_name_cpoy = malloc(length);           
+  strlcpy(copy, file_name,length);  
+  strlcpy(file_name_cpoy, file_name,length);  
   copy=strtok_r(copy," ",&ptr);   
 
   /* Allocate and activate page directory. */
@@ -425,8 +424,8 @@ load (const char *file_name, void (**eip) (void), void **esp)   /*loads the chil
   /* Set up stack. */
   if (!setup_stack (esp))
     goto done;
-
-  push_arguments(file_name,esp);  
+  
+  push_arguments(file_name_cpoy, esp);  
 
   free(copy);
   /* Start address. */
@@ -492,9 +491,10 @@ validate_segment (const struct Elf32_Phdr *phdr, struct file *file)
   return true;
 }
 
-void push_arguments(char *file_name,void **esp)
-{
-  char*token,save_ptr;
+void push_arguments(char *file_name, void **esp)
+{ 
+  char*token;
+  char *save_ptr;
   char *arg[10];
   int itr=0;
       for (token = strtok_r (file_name, " ", &save_ptr); token != NULL;token = strtok_r (NULL, " ", &save_ptr))
@@ -510,19 +510,18 @@ void push_arguments(char *file_name,void **esp)
         int arguments_length = 0;
 
         for(int i = length-1; i >= 0; i--){
-
           int len = strlen(arg[i]);
-          char* temp = (char*)malloc(len + 1);
-          int len2=strlen(arg[i])+1;
-          strlcpy(temp, arg[i],len2);
-          temp[len] = '\0';
+          // char* temp = (char*)malloc(len + 1);
+          // int len2=strlen(arg[i])+1;
+          // strlcpy(temp, arg[i],len2);
+          // temp[len] = '\0';
 
           *esp = *esp - (len + 1);
-          addresses[length - i - 1] = *esp;
+          addresses[i] = (char *)*esp;
 
-          memcpy(*esp, temp, len + 1);
+          memcpy(*esp, arg[i], len + 1);
 
-          free(temp);
+          // free(temp);
           arguments_length = arguments_length + len + 1;
         }
         
@@ -534,31 +533,29 @@ void push_arguments(char *file_name,void **esp)
         }
 
         // sentinel
-          *esp = *esp - 4;
-          int temp = 0;
-          memcpy(*esp, temp, 4);
+        *esp = *esp - sizeof(char *);
+        memset(*esp, 0, 1);
 
         // addresses
-
         for(int i = 0; i < length; i++){
-          *esp = *esp - 4;
-           memcpy(*esp, addresses[i], 4);
+          *esp = *esp - sizeof(char *);
+           memcpy(*esp, addresses[i], sizeof(char *));
         }
 
         // last address
         char* last_address = *esp;
-        *esp = *esp - 4;
-        memcpy(*esp, last_address, 4);
+        *esp = *esp - sizeof(char **);
+        memcpy(*esp, last_address, sizeof(char **));
       
         // argc
-        *esp = *esp - 4;
-        memcpy(*esp, &length, 4);
+        *esp = *esp - sizeof(int);
+        memcpy(*esp, &length, sizeof(int));
 
         // return address
-          *esp = *esp - 4;
-          memcpy(*esp, 0, 4);
-
-      
+          *esp = *esp - sizeof(int *);
+          *(int **)((char *)*esp - sizeof(int *)) = 0;
+          
+          return;
 }
 
 

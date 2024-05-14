@@ -117,7 +117,7 @@ struct thread
     tid_t the_child_i_wait_for;
     struct thread *parent;         /*parent*/       
     struct semaphore parent_child_sync;   //making parent wait on his child
-   
+    struct semaphore parent_allow_child_to_execute;
 
  #ifdef USERPROG
     /* Owned by userprog/process.c. */

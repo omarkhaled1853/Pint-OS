@@ -22,7 +22,7 @@
 
 /* List of processes in THREAD_READY state, that is, processes
    that are ready to run but not actually running. */
-struct child_process *create_child_process(tid_t tid);
+//struct child_process *create_child_process(tid_t tid);
 static struct list ready_list;
 
 /* List of all processes.  Processes are added to this list
@@ -472,6 +472,7 @@ init_thread (struct thread *t, const char *name, int priority)
   
    /*to make semaphore blocking*/
   sema_init(&t->parent_child_sync,0);
+  sema_init(&t->parent_allow_child_to_execute,0);
   list_init(&t->Child_process_list);
   list_init(&t->open_files_list);
   
