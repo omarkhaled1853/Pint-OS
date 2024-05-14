@@ -141,18 +141,17 @@ process_exit (void)
   uint32_t *pd;
   //added 
   lock_acquire(&files_lock);   /// aquire lock 
-  process_close_file(-1); // close all files of this thread 
+  process_close_file(close_all); // close all files of this thread 
   if(cur->exutable_file) //close exutable file 
   {
     file_close(cur->exutable_file);
   }
   lock_release(&files_lock);
   remove_all_child();
-  //
 
-  // needed to implement wake up of all child
-  //wake up children 
-  //
+   /* when exit cur, awake his parent */
+  struct thread *parent = cur->parent_thread;
+  sema_up(&parent->wait_lock);
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;

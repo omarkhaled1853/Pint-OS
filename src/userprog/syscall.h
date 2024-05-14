@@ -19,7 +19,7 @@ void process_close_file(int file_descriptor) {
       file_close(file_ptr->file);
       list_remove(&file_ptr->elem);
       free(file_ptr);
-      if (file_descriptor != -1) {
+      if (file_descriptor != close_all) {
         return;
       }
     }
