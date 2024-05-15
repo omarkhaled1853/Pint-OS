@@ -95,7 +95,7 @@ struct child_process
  /* ======================================== ADDED ======================================== */
 struct process_file
 {
-   int fd; // ++ with every files creation in the list 
+   int f_d; // ++ with every files creation in the list 
    struct file* file;
    struct list_elem elem;
 };

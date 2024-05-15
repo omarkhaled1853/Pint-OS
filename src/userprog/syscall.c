@@ -1,15 +1,13 @@
-#include "userprog/syscall.h"
 #include <stdio.h>
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/synch.h"
-/* ======================================== ADDED ======================================== */
-#include "filesys/filesys.h"
-#include "filesys/file.h"
-/* ======================================== ADDED ======================================== */
 #include "threads/vaddr.h"
-#include "userprog/pagedir.c"
+#include "threads/init.h"
+#include "userprog/syscall.h"
+#include "filesys/file.h"
+#include "filesys/filesys.h"
 #include "userprog/process.h"
 
 static void syscall_handler (struct intr_frame *);
@@ -142,7 +140,7 @@ void validate_void_ptr (const void *pt)
   // Check user space memory
   bool is_kernel_space = !is_user_vaddr(address);
   // Check unmapped to virtual address
-  bool is_unmapped_vm = !lookup_page(address, thread_current()->pagedir, true);
+  bool is_unmapped_vm = pagedir_get_page(thread_current()->pagedir, address) == NULL;
 
   if (is_null || is_unmapped_vm || is_kernel_space)
     exit(-1);
@@ -158,7 +156,7 @@ struct process_file
   {
     // Casting head to process_file
     struct process_file *open_file = list_entry(head, struct process_file, elem);
-    if (open_file->fd == fd)
+    if (open_file->f_d == fd)
       return open_file;
   }
   return NULL;
@@ -325,23 +323,23 @@ open (const char *file)
   // Lock critical section
   lock_acquire(&files_sync_lock);
   // Open file
-  struct file *file = filesys_open (file);
+  struct file *file_ptr = filesys_open (file);
   // Release lock
   lock_release(&files_sync_lock);
 
   // if valid file
-  if (file != NULL) {
+  if (file_ptr != NULL) {
     // Current thread
     struct thread *cur = thread_current();
     // Allocat open_file
     struct process_file *open_file = (struct process_file *) malloc(sizeof(struct process_file));
-    open_file->file = file;
+    open_file->file = file_ptr;
     
     // Lock critical section
     lock_acquire(&files_sync_lock);
     // Increment last file descriptor
     cur->fd_last++;
-    open_file->fd = cur->fd_last;
+    open_file->f_d = cur->fd_last;
     // Release lock
     lock_release(&files_sync_lock);
 
@@ -399,6 +397,7 @@ read (int fd, void *buffer, unsigned size)
     lock_release(&files_sync_lock);
     return size;
   }
+  return -1;
 }
 
 // File size wrapper

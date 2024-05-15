@@ -33,7 +33,7 @@ int read (int fd, void *buffer, unsigned size); // Read file implementation
 int filesize (int fd); // File size implementation
 int write (int fd, const void *buffer, unsigned size); // write file implementation
 void seek (int fd, unsigned position); // seek file implementation
-unsigned tell (int fd); // Tell file implementation
+signed tell (int fd); // Tell file implementation
 void close (int fd); // Close file implementation
 
 #endif /* userprog/syscall.h */
