@@ -139,7 +139,7 @@ void validate_void_ptr (const void *pt)
   // Check user space memory
   bool is_kernel_space = !is_user_vaddr(address);
   // Check unmapped to virtual address
-  bool is_unmapped_vm = !lookup_page(address, thread_current()->pagedir);
+  bool is_unmapped_vm = !lookup_page(address, thread_current()->pagedir, true);
 
   if (is_null || is_unmapped_vm || is_kernel_space)
     exit(-1);
@@ -179,10 +179,12 @@ halt (void)
 void
 exit_wrapper (struct intr_frame *f)
 {
-  // Check valid arguments
-
   // Dummy
-  int status = 0;
+  int *sp = f->esp;
+  sp++;
+  // Check valid arguments
+  validate_void_ptr(sp);
+  int status = get_int(sp);
   // Call exit
   f->eax = status;
   exit (status);
@@ -208,10 +210,11 @@ exit (int status)
 void
 exec_wrapper (struct intr_frame *f)
 {
+  int *sp = f -> esp;
+  sp++;
   // Check valid arguments
-
-  // Dummy
-  const char *cmd_line = "";
+  validate_void_ptr(sp);
+  const char *cmd_line = get_char_ptr(sp);
   // Call exec
   f->eax = exec (cmd_line);
 }
@@ -226,10 +229,11 @@ exec (const char *cmd_line)
 void
 wait_wrapper (struct intr_frame *f)
 {
+  int *sp = f -> esp;
+  sp++;
   // Check valid arguments
-
-  // Dummy
-  tid_t tid = NULL;
+  validate_void_ptr(sp);
+  tid_t tid = get_int(sp);
   // Call wait
   f->eax = wait (tid);
 }
@@ -244,10 +248,11 @@ wait (tid_t tid)
 void 
 create_wrapper (struct intr_frame *f)
 {
+  char *sp = f -> esp;
+  sp++;
   // Check valid arguments
-
-  // dummy
-  const char *file = "";
+  validate_void_ptr(sp);
+  const char *file = get_char_ptr(sp);
   unsigned initial_size = 0;
 
   // Call create
@@ -272,10 +277,11 @@ create (const char *file, unsigned initial_size)
 void
 remove_wrapper (struct intr_frame *f)
 {
+  int *sp = f -> esp;
+  sp++;
   // Check valid arguments
-
-  // Dummy
-  const char *file = "";
+  validate_void_ptr(sp);
+  const char *file = get_char_ptr(sp);
 
   // Call remove
   f->eax = remove (file);
@@ -298,10 +304,11 @@ remove (const char *file)
 void
 open_wrapper (struct intr_frame *f)
 {
+    int *sp = f -> esp;
+    sp++;
     // Check valid arguments
-
-    // dummy
-    const char *file = "";
+    validate_void_ptr(sp);
+    const char *file = get_char_ptr(sp);
 
     // Call open
     f->eax = open (file);
@@ -347,12 +354,19 @@ open (const char *file)
 void
 read_wrapper (struct intr_frame *f)
 {
+  int *sp = f->esp;
+  sp++;
   // Check valid arguments
-
-  // Dummy
-  int fd = 0;
-  void *buffer = NULL;
-  unsigned size = 0;
+  validate_void_ptr(sp);
+  int fd = get_int(sp);
+  sp++;
+  // Check valid arguments
+  validate_void_ptr(sp);
+  char *buffer = get_char_ptr(sp);
+  sp++;
+  // Check valid arguments
+  validate_void_ptr(sp);
+  unsigned size = get_int(sp);
   // Call read
   f->eax = read(fd, buffer, size);
 }
@@ -361,18 +375,35 @@ int
 read (int fd, void *buffer, unsigned size)
 {
   // Need implementation 
-    return 0;
+  if(fd == 0) {
+    for(int i = 0; i < size; i++) {
+      lock_acquire(&files_sync_lock);
+      char c = input_getc();
+      lock_release(&files_sync_lock);
+      (char) buffer += c;
+    }
+    return size;
+  } else if(fd == 1) {
+    //negative space 
+  } else {
+    struct process_file *file = get_open_file(fd);
+    lock_acquire(&files_sync_lock);
+    file_read(file, buffer, size);
+    lock_release(&files_sync_lock);
+    return size;
+  }
+  return -1;
 }
 
 // File size wrapper
 void
 filesize_wrapper (struct intr_frame *f)
 {
+  int *sp = f -> esp;
+  sp++;
   // Check valid arguments
-
-  // Dummy
-  int fd = 0;
-
+  validate_void_ptr(sp);
+  int fd = get_int(sp);
   // Call file size
   f->eax = filesize (fd);
 }
@@ -396,14 +427,21 @@ filesize (int fd)
 void
 write_wrapper (struct intr_frame *f)
 {
+  int *sp = f->esp;
+  sp++;
   // Check valid arguments
-
-  // Dummy
-  int fd = 0;
-  const void *buffer = NULL;
-  unsigned size = 0;
+  validate_void_ptr(sp);
+  int fd = get_int(sp);
+  sp++;
+  // Check valid arguments
+  validate_void_ptr(sp);
+  void *buffer = get_void_pointer(sp);
+  sp++;
+  // Check valid arguments
+  validate_void_ptr(sp);
+  unsigned size = get_int(sp);
   // Call write
-  f->eax = write (fd, buffer, size);
+  f->eax = write(fd, buffer, size);
 }
 
 // write file implementation
@@ -411,18 +449,36 @@ int
 write (int fd, const void *buffer, unsigned size)
 {
   // Need implementation 
-  return 0;
+  if(fd == 0) {
+    //negative space
+  } else if(fd == 1) {
+    lock_acquire(&files_sync_lock);
+    putbuf(buffer, size);
+    lock_release(&files_sync_lock); 
+    return size;
+  } else {
+    struct process_file *file = get_open_file(fd);
+    lock_acquire(&files_sync_lock);
+    int return_value = file_write(file, buffer, size);
+    lock_release(&files_sync_lock);
+    return return_value;
+  }
+  return -1;
 }
 
 // Seek file wrapper
 void
 seek_wrapper (struct intr_frame *f)
 {
+  int *sp = f -> esp;
+  sp++;
   // Check valid arguments
-
-  // Dummy
-  int fd = 0;
-  unsigned position = 0;
+  validate_void_ptr(sp);
+  int fd = get_int(sp);
+  sp++;
+  // Check valid arguments
+  validate_void_ptr(sp);
+  unsigned position = get_int(sp);
   // Call seek
   f->eax = position;
   seek (fd, position);
@@ -434,9 +490,7 @@ seek (int fd, unsigned position)
   // Lock critical section
   lock_acquire(&files_sync_lock);
   // Get file
-
-  // Dummy
-  struct file *file = NULL;
+  struct file *file = get_open_file(fd);
   file_seek (file, position);
   // Release lock
   lock_release(&files_sync_lock);
@@ -446,10 +500,11 @@ seek (int fd, unsigned position)
 void
 tell_wrapper (struct intr_frame *f)
 {
+  int *sp = f -> esp;
+  sp++;
   // Check valid arguments
-
-  // Dummy
-  int fd = 0;
+  validate_void_ptr(sp);
+  int fd = get_int(sp);
   // Call tell
   f->eax = tell (fd);
 }
@@ -462,7 +517,7 @@ tell (int fd)
   // Get file
 
   // Dummy
-  struct file *file = NULL;
+  struct file *file = get_open_file(fd);
   int position = file_tell (file);
   // Release lock
   lock_release(&files_sync_lock);
@@ -474,10 +529,11 @@ tell (int fd)
 void
 close_wrapper (struct intr_frame *f)
 {
+  int *sp = f -> esp;
+  sp++;
   // Check valid arguments
-
-  // Dummy
-  int fd = 0;
+  validate_void_ptr(sp);
+  int fd = get_int(sp);
   // Call tell
   close (fd);
 }
@@ -490,7 +546,7 @@ close (int fd)
   // Get file
 
   // Dummy
-  struct file *file = NULL;
+  struct file *file = get_open_file(fd);
   file_close (file);
   // Release lock
   lock_release(&files_sync_lock);
