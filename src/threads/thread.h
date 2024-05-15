@@ -111,7 +111,7 @@ struct thread
     struct thread *parent;         /*parent*/       
     struct semaphore parent_child_sync;   //making parent wait on his child
     struct semaphore parent_allow_child_to_execute;
-
+    int fd_last;
  #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
