@@ -335,11 +335,11 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
  done:
   /* ======================================== ADDED ======================================== */
-  //  Deny file write
-  file_deny_write(file);
-
+  
+  if(success) {
+    file_deny_write(file);            //  Deny file write
+  }
   /* We arrive here whether the load is successful or not. */
-  file_close (file);
   return success;
 }
 
