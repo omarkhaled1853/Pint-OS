@@ -178,7 +178,6 @@ void system_exec_wrapper(struct intr_frame *f)
 {
   char* cmd_line = (char*) (*((int*)f->esp + 1));
   if (!validate_address_in_virtual_memory(cmd_line)){
-    // f->eax = -1;
     sys_exit(-1);
   }
   
@@ -195,7 +194,6 @@ void system_wait_wrapper(struct intr_frame *f)
   int *tid_pointer = (int *) ((int *)f->esp + 1);
   if (!validate_address_in_virtual_memory(tid_pointer))
   {
-    // f->eax = -1;
     sys_exit(-1);
   }
 

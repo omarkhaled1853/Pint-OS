@@ -52,9 +52,10 @@ process_execute (const char *file_name)
    /* we must wait for creation of our child*/
    sema_down(&thread_current()->parent_child_sync);
 
-  if (tid == TID_ERROR)
+  if (tid == TID_ERROR){
+     free(fn_copy);
     palloc_free_page (fn_copy);
-
+  }
   if(thread_current()->child_create_success)
         return tid;
 
@@ -174,12 +175,25 @@ process_exit (void)
           sema_up(&parent->parent_allow_child_to_execute); /*allow parent to rework*/
       }
    }
-  //added 
-  //lock_acquire(&files_lock);   /// aquire lock 
-  //process_close_file(-1); // close all files of this thread 
-   //close exutable file 
+
+
+
   
-    file_close(cur->exutable_file);
+  /*close files*/
+  
+
+  struct list *files_opened = &thread_current()->open_files_list;
+  struct list_elem *iter = list_begin(files_opened);
+  while (iter != list_end(files_opened))
+  {
+    struct process_file *this = list_entry(iter, struct process_file, elem);
+    iter = list_next(iter);
+    file_close(this->file);
+    list_remove(&this->elem);
+    free(this);
+  }
+
+  file_close(cur->exutable_file);
   thread_current()->parent = NULL;
   thread_current()->exutable_file = NULL;
   remove_all_child();
@@ -311,133 +325,124 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
    Stores the executable's entry point into *EIP
    and its initial stack pointer into *ESP.
    Returns true if successful, false otherwise. */
-bool
-load (const char *file_name, void (**eip) (void), void **esp)   /*loads the child with the executable file and confirm its success*/
+bool load(const char *file_name, void (**eip)(void), void **esp)
 {
-  struct thread *t = thread_current ();
+  struct thread *t = thread_current();
   struct Elf32_Ehdr ehdr;
   struct file *file = NULL;
   off_t file_ofs;
   bool success = false;
   int i;
-  
 
-  /*we want to open the exe file here (first token of file name) */
-  
-  char* copy;
-  char* file_name_cpoy;
-  char* ptr;
-  int length=strlen(file_name)+1;
-  copy = malloc(length);           
-  file_name_cpoy = malloc(length);           
-  strlcpy(copy, file_name,length);  
-  strlcpy(file_name_cpoy, file_name,length);  
-  copy=strtok_r(copy," ",&ptr);   
+  /*Using the strtok_r to separate agruments*/
+
+  char *file_name_copy;
+  char *buffer_ptr;
+  int arguments_lenght = strlen(file_name) + 1;
+  file_name_copy = malloc(arguments_lenght);
+  strlcpy(file_name_copy, file_name, arguments_lenght);
+  file_name_copy = strtok_r(file_name_copy, " ", &buffer_ptr); // Only file name now is in file_name_copy
 
   /* Allocate and activate page directory. */
-  t->pagedir = pagedir_create ();
-  if (t->pagedir == NULL) 
+  t->pagedir = pagedir_create();
+  if (t->pagedir == NULL)
     goto done;
-  process_activate ();
+  process_activate();
 
   /* Open executable file. */
-  file = filesys_open (copy);
-  if (file == NULL) 
-    {
-      printf ("load: %s: open failed\n", file_name);
-      goto done; 
-    }
+  file = filesys_open(file_name_copy);
+  if (file == NULL)
+  {
+    printf("load: %s: open failed\n", file_name);
+    goto done;
+  }
 
   /* Read and verify executable header. */
-  if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
-      || memcmp (ehdr.e_ident, "\177ELF\1\1\1", 7)
-      || ehdr.e_type != 2
-      || ehdr.e_machine != 3
-      || ehdr.e_version != 1
-      || ehdr.e_phentsize != sizeof (struct Elf32_Phdr)
-      || ehdr.e_phnum > 1024) 
-    {
-      printf ("load: %s: error loading executable\n", file_name);
-      goto done; 
-    }
+  if (file_read(file, &ehdr, sizeof ehdr) != sizeof ehdr || memcmp(ehdr.e_ident, "\177ELF\1\1\1", 7) || ehdr.e_type != 2 || ehdr.e_machine != 3 || ehdr.e_version != 1 || ehdr.e_phentsize != sizeof(struct Elf32_Phdr) || ehdr.e_phnum > 1024)
+  {
+    printf("load: %s: error loading executable\n", file_name);
+    goto done;
+  }
 
-   thread_current()->exutable_file=file;     
+  // Point to the exe now
+  thread_current()->exutable_file = file;
+
   /* Read program headers. */
   file_ofs = ehdr.e_phoff;
-  for (i = 0; i < ehdr.e_phnum; i++) 
+  for (i = 0; i < ehdr.e_phnum; i++)
+  {
+    struct Elf32_Phdr phdr;
+
+    if (file_ofs < 0 || file_ofs > file_length(file))
+      goto done;
+    file_seek(file, file_ofs);
+
+    if (file_read(file, &phdr, sizeof phdr) != sizeof phdr)
+      goto done;
+    file_ofs += sizeof phdr;
+    switch (phdr.p_type)
     {
-      struct Elf32_Phdr phdr;
-
-      if (file_ofs < 0 || file_ofs > file_length (file))
-        goto done;
-      file_seek (file, file_ofs);
-
-      if (file_read (file, &phdr, sizeof phdr) != sizeof phdr)
-        goto done;
-      file_ofs += sizeof phdr;
-      switch (phdr.p_type) 
+    case PT_NULL:
+    case PT_NOTE:
+    case PT_PHDR:
+    case PT_STACK:
+    default:
+      /* Ignore this segment. */
+      break;
+    case PT_DYNAMIC:
+    case PT_INTERP:
+    case PT_SHLIB:
+      goto done;
+    case PT_LOAD:
+      if (validate_segment(&phdr, file))
+      {
+        bool writable = (phdr.p_flags & PF_W) != 0;
+        uint32_t file_page = phdr.p_offset & ~PGMASK;
+        uint32_t mem_page = phdr.p_vaddr & ~PGMASK;
+        uint32_t page_offset = phdr.p_vaddr & PGMASK;
+        uint32_t read_bytes, zero_bytes;
+        if (phdr.p_filesz > 0)
         {
-        case PT_NULL:
-        case PT_NOTE:
-        case PT_PHDR:
-        case PT_STACK:
-        default:
-          /* Ignore this segment. */
-          break;
-        case PT_DYNAMIC:
-        case PT_INTERP:
-        case PT_SHLIB:
-          goto done;
-        case PT_LOAD:
-          if (validate_segment (&phdr, file)) 
-            {
-              bool writable = (phdr.p_flags & PF_W) != 0;
-              uint32_t file_page = phdr.p_offset & ~PGMASK;
-              uint32_t mem_page = phdr.p_vaddr & ~PGMASK;
-              uint32_t page_offset = phdr.p_vaddr & PGMASK;
-              uint32_t read_bytes, zero_bytes;
-              if (phdr.p_filesz > 0)
-                {
-                  /* Normal segment.
-                     Read initial part from disk and zero the rest. */
-                  read_bytes = page_offset + phdr.p_filesz;
-                  zero_bytes = (ROUND_UP (page_offset + phdr.p_memsz, PGSIZE)
-                                - read_bytes);
-                }
-              else 
-                {
-                  /* Entirely zero.
-                     Don't read anything from disk. */
-                  read_bytes = 0;
-                  zero_bytes = ROUND_UP (page_offset + phdr.p_memsz, PGSIZE);
-                }
-              if (!load_segment (file, file_page, (void *) mem_page,
-                                 read_bytes, zero_bytes, writable))
-                goto done;
-            }
-          else
-            goto done;
-          break;
+          /* Normal segment.
+             Read initial part from disk and zero the rest. */
+          read_bytes = page_offset + phdr.p_filesz;
+          zero_bytes = (ROUND_UP(page_offset + phdr.p_memsz, PGSIZE) - read_bytes);
         }
+        else
+        {
+          /* Entirely zero.
+             Don't read anything from disk. */
+          read_bytes = 0;
+          zero_bytes = ROUND_UP(page_offset + phdr.p_memsz, PGSIZE);
+        }
+        if (!load_segment(file, file_page, (void *)mem_page,
+                          read_bytes, zero_bytes, writable))
+          goto done;
+      }
+      else
+        goto done;
+      break;
     }
+  }
 
   /* Set up stack. */
-  if (!setup_stack (esp))
+  if (!setup_stack(esp))
     goto done;
-  
-  push_arguments(file_name_cpoy, esp);  
 
-  free(copy);
+  // Pushing the argument in the stack
+  push_stack_arguments(file_name_copy, esp, &buffer_ptr);
+  free(file_name_copy);
+
   /* Start address. */
-  *eip = (void (*) (void)) ehdr.e_entry;
+  *eip = (void (*)(void))ehdr.e_entry;
 
   success = true;
 
- done:
+done:
   /* We arrive here whether the load is successful or not. */
-
-  if(success)                   /*protect my exe*/
-      file_deny_write(file);  
+  // Here we deny file write.
+  if (success)
+    file_deny_write(file);
 
   return success;
 }
@@ -491,73 +496,65 @@ validate_segment (const struct Elf32_Phdr *phdr, struct file *file)
   return true;
 }
 
-void push_arguments(char *file_name, void **esp)
-{ 
-  char*token;
-  char *save_ptr;
-  char *arg[10];
-  int itr=0;
-      for (token = strtok_r (file_name, " ", &save_ptr); token != NULL;token = strtok_r (NULL, " ", &save_ptr))
-      {
-          arg[itr]=token;
-          itr++;
-      }
-    arg[itr]=NULL;
-    size_t length = (size_t)itr;
+void push_stack_arguments(char *f_name, void **esp, char **save_ptr)
+{
+  void *stack_pointer = *esp;
+  int argc = 0;
+  char *ptr = f_name;
+  int total_size = 0;
 
-        char* addresses[10];
-        addresses[length] = NULL;
-        int arguments_length = 0;
+  // Pushing elements on the stack
+  while (ptr != NULL)
+  {
+    stack_pointer -= (strlen(ptr) + 1);
+    memcpy(stack_pointer, ptr, strlen(ptr) + 1);
+    total_size += strlen(ptr) + 1;
+    argc++;
+    ptr = strtok_r(NULL, " ", save_ptr);
+  }
+  
+  char *stack_arguments = stack_pointer;
 
-        for(int i = length-1; i >= 0; i--){
-          int len = strlen(arg[i]);
-          // char* temp = (char*)malloc(len + 1);
-          // int len2=strlen(arg[i])+1;
-          // strlcpy(temp, arg[i],len2);
-          // temp[len] = '\0';
+  /* The purpose of word alignment is to improve memory access performance and reduce memory fragmentation. When memory is allocated, the operating system allocates memory blocks that are aligned to word boundaries. */
+  int current_word_alignment = (4 - (total_size % 4)) % 4;
+  if (current_word_alignment != 0)
+  {
+    stack_pointer -= current_word_alignment;
+    memset(stack_pointer, 0, current_word_alignment); // Put zeros in the last word, to replace them later with Null
+  }
+  // We want the esp to be increased word by word, I don't know the size of bytes of char pointers in the arguments
+  // , so we did what we did
+  stack_pointer -= sizeof(char *);
+  memset(stack_pointer, 0, 1);
 
-          *esp = *esp - (len + 1);
-          addresses[i] = (char *)*esp;
+  /*Now push the addresses of args in the stack*/
 
-          memcpy(*esp, arg[i], len + 1);
+  for (int j = argc - 1; j >= 0; j--)
+  {
+    stack_pointer -= sizeof(char *);
+    *(char **)stack_pointer = stack_arguments;
+    stack_arguments += (strlen(stack_arguments) + 1);
+  }
+  // Cast the stack pointer to a char** pointer to store the address of the first argument
+  char **address = (char **)stack_pointer;
+  // Decrement the stack pointer to make room for the char** pointer
+  stack_pointer -= sizeof(char **);
+  // Push the address of the first argument onto the stack
+  *(char ***)stack_pointer = address;
 
-          // free(temp);
-          arguments_length = arguments_length + len + 1;
-        }
-        
-        // word align
-        while(arguments_length % 4 != 0){
-          *esp = *esp - 1;
-          memcpy(*esp, 0, 1);
-          arguments_length++;
-        }
+  /*Now push the no. Arguments argc*/
+  stack_pointer -= sizeof(int);
+  *(int *)stack_pointer = argc;
 
-        // sentinel
-        *esp = *esp - sizeof(char *);
-        memset(*esp, 0, 1);
+  /*Push Null as a return address till the user program edits it*/
+  stack_pointer -= sizeof(int *);
+  *(int **)stack_pointer = 0;
 
-        // addresses
-        for(int i = 0; i < length; i++){
-          *esp = *esp - sizeof(char *);
-           memcpy(*esp, addresses[i], sizeof(char *));
-        }
+  // Done
 
-        // last address
-        char* last_address = *esp;
-        *esp = *esp - sizeof(char **);
-        memcpy(*esp, last_address, sizeof(char **));
-      
-        // argc
-        *esp = *esp - sizeof(int);
-        memcpy(*esp, &length, sizeof(int));
-
-        // return address
-          *esp = *esp - sizeof(int *);
-          *(int **)((char *)*esp - sizeof(int *)) = 0;
-          
-          return;
+  *esp = stack_pointer;
+  return;
 }
-
 
 /* Loads a segment starting at offset OFS in FILE at address
    UPAGE.  In total, READ_BYTES + ZERO_BYTES bytes of virtual
