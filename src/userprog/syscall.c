@@ -180,10 +180,10 @@ void
 exit_wrapper (struct intr_frame *f)
 {
   // Dummy
-  int *sp = f->esp;
+  int *sp = (int *)f->esp;
   sp++;
   // Check valid arguments
-  validate_void_ptr(sp);
+  validate_void_ptr(*sp);
   int status = get_int(sp);
   // Call exit
   f->eax = status;
@@ -210,11 +210,11 @@ exit (int status)
 void
 exec_wrapper (struct intr_frame *f)
 {
-  int *sp = f -> esp;
+  int *sp = (int *)f -> esp;
   sp++;
-  // Check valid arguments
-  validate_void_ptr(sp);
   const char *cmd_line = get_char_ptr(sp);
+  // Check valid arguments
+  validate_void_ptr(cmd_line);
   // Call exec
   f->eax = exec (cmd_line);
 }
@@ -229,10 +229,10 @@ exec (const char *cmd_line)
 void
 wait_wrapper (struct intr_frame *f)
 {
-  int *sp = f -> esp;
+  int *sp = (int *)f -> esp;
   sp++;
   // Check valid arguments
-  validate_void_ptr(sp);
+  validate_void_ptr(*sp);
   tid_t tid = get_int(sp);
   // Call wait
   f->eax = wait (tid);
@@ -248,11 +248,11 @@ wait (tid_t tid)
 void 
 create_wrapper (struct intr_frame *f)
 {
-  char *sp = f -> esp;
+  int *sp = (int *)f -> esp;
   sp++;
-  // Check valid arguments
-  validate_void_ptr(sp);
   const char *file = get_char_ptr(sp);
+  // Check valid arguments
+  validate_void_ptr(file);
   unsigned initial_size = 0;
 
   // Call create
@@ -277,12 +277,11 @@ create (const char *file, unsigned initial_size)
 void
 remove_wrapper (struct intr_frame *f)
 {
-  int *sp = f -> esp;
+  int *sp = (int *)f -> esp;
   sp++;
-  // Check valid arguments
-  validate_void_ptr(sp);
   const char *file = get_char_ptr(sp);
-
+  // Check valid arguments
+  validate_void_ptr(file);
   // Call remove
   f->eax = remove (file);
 }
@@ -304,12 +303,11 @@ remove (const char *file)
 void
 open_wrapper (struct intr_frame *f)
 {
-    int *sp = f -> esp;
+    int *sp = (int *)f -> esp;
     sp++;
-    // Check valid arguments
-    validate_void_ptr(sp);
     const char *file = get_char_ptr(sp);
-
+    // Check valid arguments
+    validate_void_ptr(file);
     // Call open
     f->eax = open (file);
 }
@@ -354,18 +352,18 @@ open (const char *file)
 void
 read_wrapper (struct intr_frame *f)
 {
-  int *sp = f->esp;
+  int *sp = (int *)f->esp;
   sp++;
   // Check valid arguments
-  validate_void_ptr(sp);
+  validate_void_ptr(*sp);
   int fd = get_int(sp);
   sp++;
-  // Check valid arguments
-  validate_void_ptr(sp);
   char *buffer = get_char_ptr(sp);
+  // Check valid arguments
+  validate_void_ptr(buffer);
   sp++;
   // Check valid arguments
-  validate_void_ptr(sp);
+  validate_void_ptr(*sp);
   unsigned size = get_int(sp);
   // Call read
   f->eax = read(fd, buffer, size);
@@ -380,7 +378,7 @@ read (int fd, void *buffer, unsigned size)
       lock_acquire(&files_sync_lock);
       char c = input_getc();
       lock_release(&files_sync_lock);
-      (char) buffer += c;
+      buffer = (char) buffer + c;
     }
     return size;
   } else if(fd == 1) {
@@ -399,10 +397,10 @@ read (int fd, void *buffer, unsigned size)
 void
 filesize_wrapper (struct intr_frame *f)
 {
-  int *sp = f -> esp;
+  int *sp = (int *)f -> esp;
   sp++;
   // Check valid arguments
-  validate_void_ptr(sp);
+  validate_void_ptr(*sp);
   int fd = get_int(sp);
   // Call file size
   f->eax = filesize (fd);
@@ -427,18 +425,18 @@ filesize (int fd)
 void
 write_wrapper (struct intr_frame *f)
 {
-  int *sp = f->esp;
+  int *sp = (int *)f->esp;
   sp++;
   // Check valid arguments
-  validate_void_ptr(sp);
+  validate_void_ptr(*sp);
   int fd = get_int(sp);
   sp++;
-  // Check valid arguments
-  validate_void_ptr(sp);
   void *buffer = get_void_pointer(sp);
+  // Check valid arguments
+  validate_void_ptr(buffer);
   sp++;
   // Check valid arguments
-  validate_void_ptr(sp);
+  validate_void_ptr(*sp);
   unsigned size = get_int(sp);
   // Call write
   f->eax = write(fd, buffer, size);
@@ -470,14 +468,14 @@ write (int fd, const void *buffer, unsigned size)
 void
 seek_wrapper (struct intr_frame *f)
 {
-  int *sp = f -> esp;
+  int *sp = (int *)f -> esp;
   sp++;
   // Check valid arguments
-  validate_void_ptr(sp);
+  validate_void_ptr(*sp);
   int fd = get_int(sp);
   sp++;
   // Check valid arguments
-  validate_void_ptr(sp);
+  validate_void_ptr(*sp);
   unsigned position = get_int(sp);
   // Call seek
   f->eax = position;
@@ -500,10 +498,10 @@ seek (int fd, unsigned position)
 void
 tell_wrapper (struct intr_frame *f)
 {
-  int *sp = f -> esp;
+  int *sp = (int *)f -> esp;
   sp++;
   // Check valid arguments
-  validate_void_ptr(sp);
+  validate_void_ptr(*sp);
   int fd = get_int(sp);
   // Call tell
   f->eax = tell (fd);
@@ -529,11 +527,15 @@ tell (int fd)
 void
 close_wrapper (struct intr_frame *f)
 {
-  int *sp = f -> esp;
+  int *sp = (int *)f -> esp;
   sp++;
   // Check valid arguments
-  validate_void_ptr(sp);
+  validate_void_ptr(*sp);
   int fd = get_int(sp);
+   if (fd == 0 || fd == 1)
+    {
+      sys_exit(-1);
+    }
   // Call tell
   close (fd);
 }
