@@ -35,7 +35,10 @@ syscall_handler (struct intr_frame *f)
 {
   /* ======================================== ADDED ======================================== */
   // Check validity of pointer
-  validate_void_ptr(f);
+  validate_void_ptr(f->esp);
+  if(((*(int *)f->esp) < 0) || (*(int *)f->esp) > 12) {
+    exit(-1);
+  }
 
   printf ("system call!\n");
   
@@ -182,6 +185,7 @@ exit_wrapper (struct intr_frame *f)
   // Dummy
   int *sp = (int *)f->esp;
   sp++;
+  f -> eax = -1;
   // Check valid arguments
   validate_void_ptr(*sp);
   int status = get_int(sp);
@@ -253,7 +257,9 @@ create_wrapper (struct intr_frame *f)
   const char *file = get_char_ptr(sp);
   // Check valid arguments
   validate_void_ptr(file);
-  unsigned initial_size = 0;
+  sp++;
+  validate_void_ptr(*sp);
+  unsigned initial_size = get_int(sp);
 
   // Call create
   f->eax = create (file, initial_size);
@@ -357,6 +363,7 @@ read_wrapper (struct intr_frame *f)
   // Check valid arguments
   validate_void_ptr(*sp);
   int fd = get_int(sp);
+  
   sp++;
   char *buffer = get_char_ptr(sp);
   // Check valid arguments
@@ -383,14 +390,15 @@ read (int fd, void *buffer, unsigned size)
     return size;
   } else if(fd == 1) {
     //negative space 
+  } else if(fd == -1){
+    exit(-1);
   } else {
     struct process_file *file = get_open_file(fd);
     lock_acquire(&files_sync_lock);
-    file_read(file, buffer, size);
+    size = file_read(file, buffer, size);
     lock_release(&files_sync_lock);
     return size;
   }
-  return -1;
 }
 
 // File size wrapper
@@ -409,13 +417,14 @@ filesize_wrapper (struct intr_frame *f)
 int
 filesize (int fd)
 {
+  struct process_file *process_file = get_open_file(fd);
+  if (process_file == NULL)
+  {
+    return -1;
+  }
   // Lock critical section
   lock_acquire(&files_sync_lock);
-  // Get file size
-
-  // Dummy
-  struct file *file = NULL;
-  int size = file_length (file);
+  int size = file_length (process_file -> file);
   // Release lock
   lock_release(&files_sync_lock);
   return size;
@@ -454,10 +463,15 @@ write (int fd, const void *buffer, unsigned size)
     putbuf(buffer, size);
     lock_release(&files_sync_lock); 
     return size;
+  } else if (fd == -1){
+    exit(-1);
   } else {
-    struct process_file *file = get_open_file(fd);
+    struct process_file *process_file = get_open_file(fd);
+    if(process_file == NULL) {
+      exit(-1);
+    }
     lock_acquire(&files_sync_lock);
-    int return_value = file_write(file, buffer, size);
+    int return_value = file_write(process_file -> file, buffer, size);
     lock_release(&files_sync_lock);
     return return_value;
   }
@@ -473,6 +487,11 @@ seek_wrapper (struct intr_frame *f)
   // Check valid arguments
   validate_void_ptr(*sp);
   int fd = get_int(sp);
+  struct process_file *process_file = get_open_file(fd);
+  if(process_file == NULL) {
+    f -> eax = -1;
+    return;
+  }
   sp++;
   // Check valid arguments
   validate_void_ptr(*sp);
@@ -488,8 +507,8 @@ seek (int fd, unsigned position)
   // Lock critical section
   lock_acquire(&files_sync_lock);
   // Get file
-  struct file *file = get_open_file(fd);
-  file_seek (file, position);
+  struct process_file *process_file = get_open_file(fd);
+  file_seek (process_file -> file, position);
   // Release lock
   lock_release(&files_sync_lock);
 }
@@ -507,7 +526,7 @@ tell_wrapper (struct intr_frame *f)
   f->eax = tell (fd);
 }
 // Tell file implementation
-unsigned
+signed
 tell (int fd)
 {
   // Lock critical section
@@ -515,8 +534,11 @@ tell (int fd)
   // Get file
 
   // Dummy
-  struct file *file = get_open_file(fd);
-  int position = file_tell (file);
+  struct process_file *process_file = get_open_file(fd);
+  if(process_file == NULL) {
+    return -1;
+  }
+  int position = file_tell (process_file -> file);
   // Release lock
   lock_release(&files_sync_lock);
 
@@ -534,7 +556,7 @@ close_wrapper (struct intr_frame *f)
   int fd = get_int(sp);
    if (fd == 0 || fd == 1)
     {
-      sys_exit(-1);
+      exit(-1);
     }
   // Call tell
   close (fd);
@@ -548,14 +570,14 @@ close (int fd)
   // Get file
 
   // Dummy
-  struct file *file = get_open_file(fd);
-  file_close (file);
+  struct process_file *process_file = get_open_file(fd);
+  if(process_file == NULL) {
+    exit(-1);
+  }
+  file_close (process_file -> file);
   // Release lock
   lock_release(&files_sync_lock);
-  
-  // Casting file
-  struct process_file *open_file = get_open_file(fd);
   // Remove from list
-  list_remove(&open_file->elem);
+  list_remove(&process_file->elem);
 }
 
