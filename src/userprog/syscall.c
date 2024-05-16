@@ -19,7 +19,7 @@ struct lock global_lock;
 bool validate_address_in_virtual_memory(void *add);
 static void syscall_handler(struct intr_frame *f UNUSED);
 bool valid_esp(struct intr_frame *f);
-struct process_file *sys_file_helper(int fd);
+struct files_opened *sys_file_helper(int fd);
 
 void syscall_init(void)
 {
@@ -38,13 +38,13 @@ bool validate_address_in_virtual_memory(void *val)
   return val != NULL && is_user_vaddr(val) && pagedir_get_page(thread_current()->pagedir, val) != NULL;
 }
 
-struct process_file *sys_file_helper(int fd)
+struct files_opened *sys_file_helper(int fd)
 {
-  struct list *list_of_files = &(thread_current()->open_files_list);
+  struct list *list_of_files = &(thread_current()->files_opened_by_me);
   for (struct list_elem *cur = list_begin(list_of_files); cur != list_end(list_of_files); cur = list_next(cur))
   {
-    struct process_file *cur_file = list_entry(cur, struct process_file, elem);
-    if ((cur_file->f_d) == fd)
+    struct files_opened *cur_file = list_entry(cur, struct files_opened, elem);
+    if ((cur_file->file_descriptor) == fd)
     {
       return cur_file;
     }
@@ -231,7 +231,7 @@ int sys_write(int fd, const void *buffer, unsigned size)
     return size;
   }
 
-  struct process_file *file = sys_file_helper(fd);
+  struct files_opened *file = sys_file_helper(fd);
   if (file == NULL)
   { // fail
     return -1;
@@ -240,7 +240,7 @@ int sys_write(int fd, const void *buffer, unsigned size)
   {
     int ans = 0;
     lock_acquire(&global_lock);
-    ans = file_write(file->file, buffer, size);
+    ans = file_write(file->f, buffer, size);
     lock_release(&global_lock);
     return ans;
   }
@@ -263,12 +263,12 @@ void system_close_wrapper(struct intr_frame *f)
 
 int sys_close(int fd)
 {
-  struct process_file *open = sys_file_helper(fd);
+  struct files_opened *open = sys_file_helper(fd);
 
   if (open != NULL)
   {
     lock_acquire(&global_lock);
-    file_close(open->file);
+    file_close(open->f);
     lock_release(&global_lock);
     list_remove(&open->elem);
     return 1;
@@ -352,17 +352,17 @@ int sys_open(const char *file) // return -1 1 if the file could not be opened, e
   else
   {
 
-    struct process_file *thread_files = (struct process_file *)malloc(sizeof(struct process_file));
+    struct files_opened *thread_files = (struct files_opened *)malloc(sizeof(struct files_opened));
     int file_fd = fd_now;
-    thread_files->f_d = fd_now;
-    thread_files->file = opened_file;
+    thread_files->file_descriptor = fd_now;
+    thread_files->f = opened_file;
 
     lock_acquire(&global_lock);
     fd_now++;
     lock_release(&global_lock);
     // list of opended files
     struct list_elem *elem = &thread_files->elem;
-    list_push_back(&thread_current()->open_files_list, elem);
+    list_push_back(&thread_current()->files_opened_by_me, elem);
     return file_fd;
   }
 }
@@ -381,11 +381,11 @@ void system_filesize_wrapper(struct intr_frame *f)
   }
 }
 
-int sys_filesize(struct process_file *file)
+int sys_filesize(struct files_opened *file)
 {
   long ans;
   lock_acquire(&global_lock);
-  ans = file_length(file->file);
+  ans = file_length(file->f);
   lock_release(&global_lock);
   return ans;
 
@@ -428,7 +428,7 @@ int sys_read(int fd, void *buffer, unsigned size)
   }
   else
   {
-    struct process_file *file = sys_file_helper(fd);
+    struct files_opened *file = sys_file_helper(fd);
     if (file == NULL)
     { // fail
       return -1;
@@ -436,7 +436,7 @@ int sys_read(int fd, void *buffer, unsigned size)
     else
     {
       lock_acquire(&global_lock);
-      size_of_file = file_read(file->file, buffer, size);
+      size_of_file = file_read(file->f, buffer, size);
       lock_release(&global_lock);
       return size_of_file;
     }
@@ -451,7 +451,7 @@ void sys_seek(struct intr_frame *f)
 {
   int fd = (int)(*((int *)f->esp + 1));
   unsigned postion = (unsigned)(*((int *)f->esp + 2));
-  struct process_file *opened_file = sys_file_helper(fd);
+  struct files_opened *opened_file = sys_file_helper(fd);
   if (opened_file == NULL)
   { // fail
     f->eax = -1;
@@ -459,7 +459,7 @@ void sys_seek(struct intr_frame *f)
   else
   {
     lock_acquire(&global_lock);
-    file_seek(opened_file->file, postion);
+    file_seek(opened_file->f, postion);
     f->eax = postion;
     lock_release(&global_lock);
   }
@@ -472,7 +472,7 @@ void sys_seek(struct intr_frame *f)
 void sys_tell(struct intr_frame *f)
 {
   int fd = (int)(*((int *)f->esp + 1));
-  struct process_file *file = sys_file_helper(fd);
+  struct files_opened *file = sys_file_helper(fd);
   if (file == NULL)
   {
     f->eax = -1;
@@ -480,7 +480,7 @@ void sys_tell(struct intr_frame *f)
   else
   {
     lock_acquire(&global_lock);
-    f->eax = file_tell(file->file);
+    f->eax = file_tell(file->f);
     lock_release(&global_lock);
   }
 }

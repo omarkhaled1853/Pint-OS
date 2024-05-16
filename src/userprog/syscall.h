@@ -35,7 +35,7 @@ int sys_read(int fd, void *buffer, unsigned size);
 bool sys_create (const char *file, unsigned initial_size);
 bool sys_remove (const char *file);
 int sys_open (const char *file);
-int sys_filesize (struct process_file *file);
+int sys_filesize (struct files_opened *file);
 void sys_seek (struct intr_frame *f);
 void sys_tell(struct intr_frame *f);
 int sys_close (int fd);
